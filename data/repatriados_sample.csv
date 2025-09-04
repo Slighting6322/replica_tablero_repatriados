@@ -1,0 +1,31 @@
+fecha_repatriacion,pais_origen,estado_destino,sexo,edad,motivo_repatriacion
+2023-05-10,Estados Unidos,Jalisco,Hombre,35,Deportación
+2022-11-21,Estados Unidos,Michoacán,Mujer,28,Repatriación Voluntaria
+2024-01-15,Canadá,Ciudad de México,Hombre,45,Retorno Asistido
+2023-08-01,Estados Unidos,Guanajuato,Hombre,22,Deportación
+2022-03-30,Guatemala,Oaxaca,Mujer,31,Deportación
+2024-09-12,Estados Unidos,Jalisco,Mujer,50,Repatriación Voluntaria
+2023-02-18,Honduras,Guerrero,Hombre,19,Deportación
+2022-07-07,Estados Unidos,Michoacán,Hombre,41,Deportación
+2024-06-25,El Salvador,Jalisco,Mujer,25,Retorno Asistido
+2023-12-04,Estados Unidos,Ciudad de México,Hombre,38,Repatriación Voluntaria
+2022-09-19,Estados Unidos,Jalisco,Hombre,29,Deportación
+2023-04-22,Estados Unidos,Guanajuato,Mujer,33,Deportación
+2024-08-11,Canadá,Jalisco,Hombre,55,Repatriación Voluntaria
+2022-01-05,Guatemala,Chiapas,Mujer,24,Retorno Asistido
+2023-10-30,Estados Unidos,Michoacán,Hombre,48,Deportación
+2024-03-14,Estados Unidos,Zacatecas,Mujer,27,Repatriación Voluntaria
+2022-05-20,Honduras,Veracruz,Hombre,21,Deportación
+2023-07-16,Estados Unidos,Baja California,Hombre,36,Deportación
+2024-11-02,El Salvador,Puebla,Mujer,30,Retorno Asistido
+2022-08-28,Estados Unidos,Sonora,Hombre,42,Repatriación Voluntaria
+2023-01-12,Estados Unidos,Jalisco,Mujer,32,Deportación
+2024-05-09,Canadá,Nuevo León,Hombre,40,Deportación
+2022-12-01,Guatemala,Quintana Roo,Mujer,26,Repatriación Voluntaria
+2023-06-28,Estados Unidos,Chihuahua,Hombre,39,Retorno Asistido
+2024-02-23,Honduras,Tabasco,Mujer,23,Deportación
+2022-10-15,Estados Unidos,Durango,Hombre,44,Deportación
+2023-09-05,El Salvador,Morelos,Mujer,34,Repatriación Voluntaria
+2024-07-20,Estados Unidos,Sinaloa,Hombre,37,Retorno Asistido
+2022-04-18,Estados Unidos,Coahuila,Mujer,29,Deportación
+2023-11-25,Canadá,Querétaro,Hombre,46,Deportación

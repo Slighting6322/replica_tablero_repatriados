@@ -23,11 +23,7 @@
     <div class="page-wrapper">
       <div class="container-xl mt-4">
 
-        <!-- Navegación interna (opcional, puedes mantener la del header) -->
-        <nav class="nav-secciones" aria-label="Navegación principal" style="margin-bottom:1rem;">
-          <button class="btn-seccion" data-target="home" aria-pressed="true">Inicio</button>
-          <button class="btn-seccion" data-target="origen" aria-pressed="false">Deportaciones desde EEUU</button>
-        </nav>
+  <!-- La navegación se proporciona desde el header; no se muestran botones duplicados aquí -->
 
         <!-- SECCIÓN: INICIO -->
         <section id="seccion-home" class="seccion" data-seccion="home">
@@ -71,26 +67,18 @@
         history.replaceState(null, '', '#' + target);
       }
 
-      // Botones internos
-      document.addEventListener('click', function (e) {
-        const btn = e.target.closest('.btn-seccion');
-        if (btn) {
-          e.preventDefault();
-          showSection(btn.dataset.target);
-        }
-      });
-
-      // Interceptar y convertir los links del header (si header.js crea <a href="origen_destino.html">)
+      // Interceptar clicks en los links del header y mostrar la sección correspondiente
       document.addEventListener('DOMContentLoaded', function () {
         const headerNav = document.querySelector('.header-nav');
         if (headerNav) {
           headerNav.querySelectorAll('a').forEach(a => {
             const href = a.getAttribute('href') || '';
-            if (href.endsWith('index.html') || href === './' || href === '/') {
+            if (href.startsWith('#')) {
+              a.addEventListener('click', function (ev) { ev.preventDefault(); showSection(href.replace('#','')); });
+            } else if (href.endsWith('index.html') || href === './' || href === '/') {
               a.setAttribute('href', '#home');
               a.addEventListener('click', function (ev) { ev.preventDefault(); showSection('home'); });
             }
-            // otros enlaces pueden permanecer como están o mapearse manualmente aquí
           });
         }
 

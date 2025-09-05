@@ -56,8 +56,7 @@
   <script src="componentes/header.js"></script>
   <script src="componentes/footer.js"></script>
 
-  <!-- Scripts de la app -->
-  <script src="js/script.js"></script>
+  <!-- Scripts de la app (el script está removido porque la app usa módulos Shiny ahora) -->
 
   <!-- Pequeño router/gestor de secciones y adaptación de links del header -->
   <script>
@@ -87,13 +86,11 @@
         if (headerNav) {
           headerNav.querySelectorAll('a').forEach(a => {
             const href = a.getAttribute('href') || '';
-            if (href.endsWith('origen_destino.html')) {
-              a.setAttribute('href', '#origen');
-              a.addEventListener('click', function (ev) { ev.preventDefault(); showSection('origen'); });
-            } else if (href.endsWith('index.html') || href === './' || href === '/') {
+            if (href.endsWith('index.html') || href === './' || href === '/') {
               a.setAttribute('href', '#home');
               a.addEventListener('click', function (ev) { ev.preventDefault(); showSection('home'); });
             }
+            // otros enlaces pueden permanecer como están o mapearse manualmente aquí
           });
         }
 
@@ -105,6 +102,4 @@
   </script>
   <!-- módulos inyectados por htmlTemplate -->
   </body>
-  </html>
-</body>
 </html>

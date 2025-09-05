@@ -1,8 +1,19 @@
 library(shiny)
 
-# Usamos htmlTemplate para conectar nuestro index.html con los outputs de R
-# Solo necesitamos definir el marcador para la fecha.
-ui <- htmlTemplate(
-  "www/index.html",
-  fecha_corte_placeholder = textOutput("fecha_corte_texto", inline = TRUE)
+ui <- navbarPage(
+  "Tablero",
+  tabPanel(
+    "Ocupación por centro",
+    htmlTemplate(
+      "www/index.html",
+      fecha_corte_placeholder = textOutput("fecha_corte_texto", inline = TRUE)
+    )
+  ),
+  tabPanel(
+    "Origen y Destino",
+    htmlTemplate(
+      "www/origen_destino.html",
+      fecha_corte_placeholder = textOutput("fecha_corte_texto", inline = TRUE)
+    )
+  )
 )

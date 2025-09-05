@@ -13,7 +13,9 @@ library(dplyr)
 library(lubridate)
 
 # Cargar los datos
-repatriados_data <- read_csv("data/repatriados_sample.csv")
+# Cargar los datos (usar data_loader centralizado)
+if (file.exists("R/data_loader.R")) source("R/data_loader.R", local = TRUE)
+repatriados_data <- get_repatriados_data("data/repatriados_sample.csv")
 # Procesar la fecha de corte (si existe la columna fecha_repatriacion)
 if ("fecha_repatriacion" %in% names(repatriados_data)) {
   fecha_corte <- repatriados_data %>%

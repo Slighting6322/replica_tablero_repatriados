@@ -1,50 +1,42 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <!-- Shiny necesita este tag para inyectar sus dependencias del head -->
-  {{ headContent() }}
-  
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
+  <!-- Shiny necesita este tag para inyectar sus dependencias del head -->
+  <!-- Lo movemos aquí, ANTES de nuestros estilos personalizados -->
+  {{ headContent() }}
+
   <!-- Fuentes -->
   <link href="https://fonts.googleapis.com/css2?family=Inter&family=Montserrat&family=Noto+Sans&display=swap" rel="stylesheet">
   
   <!-- CSS -->
-  <link href="css/tabler.min.css" rel="stylesheet" />
+  <!-- Nuestros estilos se cargan al final para que tengan la máxima prioridad -->
   <link href="css/style.css" rel="stylesheet" />
   
   <title>Tablero</title>
 </head>
 <body>
   <div class="page">
-
     <header-gob></header-gob>
-
-    <!-- Franja de título -->
-    <div class="franja-titulo">
-      <div class="textura-superior"></div>
-      <div class="titulo-centro">Tablero base</div>
-    </div>
 
     <div class="page-wrapper">
       <div class="container-xl mt-4">
         
         <!-- === ÁREA DE CONTENIDO SHINY === -->
-        <!-- Aquí es donde Shiny insertará sus outputs. -->
-        <!-- Por ejemplo, un output de tabla se vería así: -->
-        <!-- <div id="miTabla" class="shiny-html-output"></div> -->
-        
-        <!-- Vamos a empezar con un output de texto de prueba -->
-        <div id="mensaje_prueba" class="shiny-text-output"></div>
-        
+        <h1 class="page-title">Ocupación por centro de atención</h1>
+        <p class="page-subtitle">Fecha de corte: <span id="fecha_corte_placeholder"></span></p>
+        <h2 class="titulo-barra">Ocupación general</h2>
+        <!-- Este es ahora el contenido por defecto de la página principal -->
+
       </div>
     </div> <!-- Fin de page-wrapper -->
 
     <footer-gob></footer-gob>
   </div>
 
-  <!-- Scripts de componentes (solo los esenciales por ahora) -->
+  <!-- Scripts de componentes -->
   <script src="componentes/header.js"></script>
   <script src="componentes/footer.js"></script>
   

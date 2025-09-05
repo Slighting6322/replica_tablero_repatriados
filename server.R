@@ -3,16 +3,11 @@
 
 source("global.R", local = TRUE)
 
-server <- function(input, output, session) {
-  
-  # Este output renderiza un texto de bienvenida.
-  # Shiny lo insertará en el elemento HTML cuyo id sea "mensaje_prueba".
-  output$mensaje_prueba <- renderText({
-    "¡La conexión entre R y la plantilla HTML funciona!"
+function(input, output, session) {
+
+  # Renderizar el texto de la fecha de corte
+  output$fecha_corte_texto <- renderText({
+    fecha_corte_texto
   })
-  
-  # Más adelante, aquí irán los servidores de tus módulos
-  # y la lógica para renderizar gráficos y tablas en otros
-  # elementos de la plantilla.
-  
+
 }

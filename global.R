@@ -8,21 +8,18 @@
 
 # Carga de librerías principales
 library(shiny)
-library(htmlwidgets) # Fundamental para la integración con JavaScript
-library(readr)       # Para leer archivos CSV de forma eficiente
+library(readr)
+library(dplyr)
+library(lubridate)
 
-# Carga de datos iniciales
-# Leemos el archivo CSV y lo almacenamos en un dataframe global.
-# Usamos `tryCatch` para manejar el caso en que el archivo no exista.
-datos_repatriados <- tryCatch({
-  # Se añade `show_col_types = FALSE` para evitar el mensaje en la consola.
-  read_csv("data/repatriados_sample.csv", show_col_types = FALSE)
-}, error = function(e) {
-  # Si hay un error (ej. el archivo no se encuentra), crea un dataframe vacío.
-  # Esto previene que la app falle al iniciar si los datos no están.
-  data.frame()
-})
+# Cargar los datos
+repatriados_data <- read_csv("data/repatriados_sample.csv")
 
+# Procesar la fecha de corte
+fecha_corte <- repatriados_data %>%
+  summarise(max_date = max(fecha_repatriacion, na.rm = TRUE)) %>%
+  pull(max_date)
 
-# (Opcional) Cargar todos los módulos de la carpeta R/ automáticamente
-# purrr::walk(list.files("R", full.names = TRUE), source)
+# Formatear la fecha para mostrarla (ej: 05 de septiembre de 2025)
+# Sys.setlocale("LC_TIME", "es_ES.UTF-8") # Descomentar si el mes no sale en español en el servidor
+fecha_corte_texto <- format(fecha_corte, "%d de %B de %Y")

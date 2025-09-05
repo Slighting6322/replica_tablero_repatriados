@@ -1,3 +1,4 @@
+<!-- ...existing code... -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -5,14 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
   <!-- Shiny necesita este tag para inyectar sus dependencias del head -->
-  <!-- Lo movemos aquí, ANTES de nuestros estilos personalizados -->
   {{ headContent() }}
 
   <!-- Fuentes -->
   <link href="https://fonts.googleapis.com/css2?family=Inter&family=Montserrat&family=Noto+Sans&display=swap" rel="stylesheet">
   
   <!-- CSS -->
-  <!-- Nuestros estilos se cargan al final para que tengan la máxima prioridad -->
   <link href="css/style.css" rel="stylesheet" />
   
   <title>Tablero</title>
@@ -23,12 +22,29 @@
 
     <div class="page-wrapper">
       <div class="container-xl mt-4">
-        
-        <!-- === ÁREA DE CONTENIDO SHINY === -->
-        <h1 class="page-title">Ocupación por centro de atención</h1>
-        <p class="page-subtitle">Fecha de corte: {{fecha_corte_placeholder}}</p>
-        <h2 class="titulo-barra">Ocupación general:</h2>
-        <!-- Este es ahora el contenido por defecto de la página principal -->
+
+        <!-- Navegación interna (opcional, puedes mantener la del header) -->
+        <nav class="nav-secciones" aria-label="Navegación principal" style="margin-bottom:1rem;">
+          <button class="btn-seccion" data-target="home" aria-pressed="true">Inicio</button>
+          <button class="btn-seccion" data-target="origen" aria-pressed="false">Deportaciones desde EEUU</button>
+        </nav>
+
+        <!-- SECCIÓN: INICIO -->
+        <section id="seccion-home" class="seccion" data-seccion="home">
+          <h1 class="page-title">Ocupación por centro de atención</h1>
+          <p class="page-subtitle">Fecha de corte: {{fecha_corte_placeholder}}</p>
+          <h2 class="titulo-barra">Ocupación general:</h2>
+          <!-- Contenido principal / placeholder para el módulo home -->
+          {{home_section}}
+        </section>
+
+        <!-- SECCIÓN: ORIGEN (oculta por defecto) -->
+        <section id="seccion-origen" class="seccion" data-seccion="origen" style="display:none;">
+          <h1 class="page-title">Deportaciones desde EEUU</h1>
+          <p class="page-subtitle">Fecha de corte: {{fecha_corte_placeholder}}</p>
+          <!-- Placeholder para el módulo origen -->
+          {{origen_section}}
+        </section>
 
       </div>
     </div> <!-- Fin de page-wrapper -->
@@ -39,6 +55,56 @@
   <!-- Scripts de componentes -->
   <script src="componentes/header.js"></script>
   <script src="componentes/footer.js"></script>
-  
+
+  <!-- Scripts de la app -->
+  <script src="js/script.js"></script>
+
+  <!-- Pequeño router/gestor de secciones y adaptación de links del header -->
+  <script>
+    (function () {
+      function showSection(target) {
+        document.querySelectorAll('.seccion').forEach(s => {
+          s.style.display = (s.dataset.seccion === target) ? '' : 'none';
+        });
+        document.querySelectorAll('.btn-seccion').forEach(b => {
+          b.setAttribute('aria-pressed', b.dataset.target === target ? 'true' : 'false');
+        });
+        history.replaceState(null, '', '#' + target);
+      }
+
+      // Botones internos
+      document.addEventListener('click', function (e) {
+        const btn = e.target.closest('.btn-seccion');
+        if (btn) {
+          e.preventDefault();
+          showSection(btn.dataset.target);
+        }
+      });
+
+      // Interceptar y convertir los links del header (si header.js crea <a href="origen_destino.html">)
+      document.addEventListener('DOMContentLoaded', function () {
+        const headerNav = document.querySelector('.header-nav');
+        if (headerNav) {
+          headerNav.querySelectorAll('a').forEach(a => {
+            const href = a.getAttribute('href') || '';
+            if (href.endsWith('origen_destino.html')) {
+              a.setAttribute('href', '#origen');
+              a.addEventListener('click', function (ev) { ev.preventDefault(); showSection('origen'); });
+            } else if (href.endsWith('index.html') || href === './' || href === '/') {
+              a.setAttribute('href', '#home');
+              a.addEventListener('click', function (ev) { ev.preventDefault(); showSection('home'); });
+            }
+          });
+        }
+
+        // Mostrar según hash al cargar
+        const hash = location.hash.replace('#', '');
+        if (hash === 'origen') showSection('origen'); else showSection('home');
+      });
+    })();
+  </script>
+  <!-- módulos inyectados por htmlTemplate -->
+  </body>
+  </html>
 </body>
 </html>

@@ -14,12 +14,12 @@ library(lubridate)
 
 # Cargar los datos
 repatriados_data <- read_csv("data/repatriados_sample.csv")
-
-# Procesar la fecha de corte
-fecha_corte <- repatriados_data %>%
-  summarise(max_date = max(fecha_repatriacion, na.rm = TRUE)) %>%
-  pull(max_date)
-
-# Formatear la fecha para mostrarla (ej: 05 de septiembre de 2025)
-# Sys.setlocale("LC_TIME", "es_ES.UTF-8") # Descomentar si el mes no sale en español en el servidor
-fecha_corte_texto <- format(fecha_corte, "%d de %B de %Y")
+# Procesar la fecha de corte (si existe la columna fecha_repatriacion)
+if ("fecha_repatriacion" %in% names(repatriados_data)) {
+  fecha_corte <- repatriados_data %>%
+    summarise(max_date = max(fecha_repatriacion, na.rm = TRUE)) %>%
+    pull(max_date)
+} else {
+  # fallback: usar la fecha del sistema
+  fecha_corte <- Sys.Date()
+}

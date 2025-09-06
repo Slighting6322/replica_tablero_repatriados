@@ -1,7 +1,6 @@
 # server.R
 # Lógica del servidor con el nuevo enfoque de htmlTemplate.
-
-source("global.R", local = TRUE)
+# Note: global variables (repatriados_data, fecha_corte) are initialized by app.R via init_app_data()
 
 # Cargar todos los módulos R (si existen) para que sus funciones mod_*_server estén disponibles
 mods_dir <- "R/modules"
@@ -26,26 +25,26 @@ function(input, output, session) {
   })
 
   # Renderizar el texto de la fecha de corte (formato en español)
-  output$fecha_corte_texto <- renderText({
-    # Asegurar formato en español; si el servidor no tiene locale, el nombre del mes puede salir en inglés
-    # Sys.setlocale("LC_TIME", "es_ES.UTF-8") # activar si es necesario en tu entorno
-  f <- fecha_reactivo()
-  if (is.null(f) || is.na(f)) return("")
-  format(f, "%d de %B de %Y")
-  })
-
-  # Duplicate outputs used in the template to avoid duplicate ID errors
-  output$fecha_corte_texto_home <- renderText({
-    f <- fecha_reactivo()
-    if (is.null(f) || is.na(f)) return("")
-    format(f, "%d de %B de %Y")
-  })
-
-  output$fecha_corte_texto_origen <- renderText({
-    f <- fecha_reactivo()
-    if (is.null(f) || is.na(f)) return("")
-    format(f, "%d de %B de %Y")
-  })
+  # Use central mod_fecha for formatted outputs
+  if (exists("mod_fecha_server")) {
+    tryCatch({
+      mod_fecha_server("fecha_home", fecha_reactivo = fecha_reactivo)
+      mod_fecha_server("fecha_origen", fecha_reactivo = fecha_reactivo)
+      message("[server] mounted mod_fecha for home and origen")
+    }, error = function(e) message("Error mounting mod_fecha: ", e$message))
+  } else {
+    # Fallback: simple renderText for template placeholders
+    output$fecha_corte_texto_home <- renderText({
+      f <- fecha_reactivo()
+      if (is.null(f) || is.na(f)) return("")
+      format(f, "%d de %B de %Y")
+    })
+    output$fecha_corte_texto_origen <- renderText({
+      f <- fecha_reactivo()
+      if (is.null(f) || is.na(f)) return("")
+      format(f, "%d de %B de %Y")
+    })
+  }
 
   # Montar servidores de módulos si existen (ids deben coincidir con ui.R: "home1", "origen1")
   if (exists("mod_home_server")) {

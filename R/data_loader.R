@@ -46,3 +46,47 @@ clear_repatriados_cache <- function() {
     invisible(NULL)
   }
 }
+
+
+#' Get the latest (max) date from the repatriados dataset
+#'
+#' This helper accepts either a data frame (data) or a path to a CSV (path).
+#' It will try several parsers (base as.Date, lubridate::ymd/dmy/mdy, then anytime::anydate)
+#' and return the maximum date (Date) or NA if parsing fails.
+#'
+get_fecha_corte <- function(path = NULL, data = NULL) {
+  df <- NULL
+  if (!is.null(data)) {
+    df <- data
+  } else if (!is.null(path)) {
+    df <- get_repatriados_data(path)
+  } else {
+    stop("either 'path' or 'data' must be provided")
+  }
+
+  if (nrow(df) == 0 || ncol(df) == 0) return(as.Date(NA))
+
+  col_name <- if ("fecha_repatriacion" %in% names(df)) {
+    "fecha_repatriacion"
+  } else {
+    names(df)[1]
+  }
+
+  vec <- df[[col_name]]
+  # If already Date/POSIX, take max
+  if (inherits(vec, c("Date", "POSIXt"))) return(as.Date(max(vec, na.rm = TRUE)))
+
+  # Try parsers
+  try_parse <- function(x) {
+    p <- suppressWarnings(as.Date(x))
+    if (all(is.na(p))) p <- suppressWarnings(lubridate::ymd(x))
+    if (all(is.na(p))) p <- suppressWarnings(lubridate::dmy(x))
+    if (all(is.na(p))) p <- suppressWarnings(lubridate::mdy(x))
+    if (all(is.na(p)) && requireNamespace("anytime", quietly = TRUE)) p <- suppressWarnings(anytime::anydate(x))
+    as.Date(p)
+  }
+
+  parsed <- try_parse(vec)
+  if (all(is.na(parsed))) return(as.Date(NA))
+  as.Date(max(parsed, na.rm = TRUE))
+}

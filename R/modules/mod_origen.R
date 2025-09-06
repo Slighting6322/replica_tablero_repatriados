@@ -33,7 +33,7 @@ mod_origen_server <- function(id, fecha_reactivo) {
     # Debug: observar fecha_reactivo dentro de un contexto reactivo y registrar (una sola vez)
     observeEvent(fecha_reactivo(), {
       fr <- fecha_reactivo()
-      message(sprintf("[mod_origen] observed - fecha_reactivo: %s", ifelse(is.na(fr), "NA", as.character(fr))))
+      invisible(NULL)
     }, once = TRUE, ignoreNULL = FALSE)
 
     # Renderizar la fecha local namespaced para esta sección
@@ -43,20 +43,14 @@ mod_origen_server <- function(id, fecha_reactivo) {
       observeEvent(fecha_reactivo(), {
         fr <- fecha_reactivo()
         rv$fecha <- fr
-        message(sprintf("[mod_origen] observed - fecha_reactivo assigned to rv: %s", ifelse(is.na(fr), "NA", as.character(fr))))
       }, ignoreNULL = FALSE)
 
       output$fecha_origen <- renderText({
       tryCatch({
           f <- rv$fecha
-        if (is.null(f) || is.na(f)) {
-          message("[mod_origen] renderText: fecha is NULL/NA")
-            message("[mod_origen] renderText: fecha is NULL/NA (rv)")
-            return("")
-        }
-        formatted <- format(f, "%d de %B de %Y")
-          message(sprintf("[mod_origen] renderText (from rv): %s", formatted))
-        formatted
+  if (is.null(f) || is.na(f)) return("")
+  formatted <- format(f, "%d de %B de %Y")
+  formatted
       }, error = function(e) {
         message(sprintf("[mod_origen] renderText error: %s", e$message))
         ""
@@ -65,7 +59,6 @@ mod_origen_server <- function(id, fecha_reactivo) {
     # Evitar que Shiny suspenda automáticamente este output cuando la sección esté oculta
     tryCatch({
       outputOptions(output, "fecha_origen", suspendWhenHidden = FALSE)
-      message("[mod_origen] outputOptions set: fecha_origen suspendWhenHidden = FALSE")
     }, error = function(e) {
       message(sprintf("[mod_origen] unable to set outputOptions: %s", e$message))
     })

@@ -7,51 +7,46 @@
 # 4. "Source" (cargar) los archivos de la carpeta R/ que contienen tus módulos.
 
 # Carga de librerías principales
+# Dependencias
 library(shiny)
 library(readr)
 library(dplyr)
 library(lubridate)
 
-# Cargar los datos
-# Cargar los datos (usar data_loader centralizado)
-if (file.exists("R/data_loader.R")) source("R/data_loader.R", local = TRUE)
-repatriados_data <- get_repatriados_data("data/repatriados_sample.csv")
-# Procesar la fecha de corte (si existe la columna fecha_repatriacion)
-# Intentar calcular la fecha de corte usando, por prioridad:
-# 1) columna llamada 'fecha_repatriacion' si existe
-# 2) la primera columna del data.frame
-# Se hacen varios intentos de parseo de fechas antes de caer a Sys.Date().
-fecha_corte <- tryCatch({
-  col_name <- if ("fecha_repatriacion" %in% names(repatriados_data)) {
-    "fecha_repatriacion"
-  } else if (ncol(repatriados_data) >= 1) {
-    names(repatriados_data)[1]
-  } else {
-    NULL
-  }
+# global.R
+# Este archivo define la función `init_app_data()` que carga los datos
+# necesarios y devuelve una lista con `repatriados_data` y `fecha_corte`.
+# No debe realizar efectos secundarios al ser `source()`d: el llamador decide
+# cuándo ejecutar la inicialización y dónde asignar las variables.
 
-  if (is.null(col_name)) stop("no date column found")
+# Cargar utilidades de datos
+if (file.exists("R/data_loader.R")) source("R/data_loader.R")
 
-  vec <- repatriados_data[[col_name]]
+# init_app_data: carga y parsea el dataset, devuelve lista con datos y fecha_corte
+init_app_data <- function(path = "data/repatriados_sample.csv") {
+  repatriados_data <- tryCatch(get_repatriados_data(path), error = function(e) tibble::tibble())
 
-  # if already Date/POSIX, handle directly
-  if (inherits(vec, c("Date", "POSIXt"))) {
-    max(vec, na.rm = TRUE)
-  } else {
-    # Try several parsers
-    parsed <- suppressWarnings(as.Date(vec))
-    if (all(is.na(parsed))) parsed <- suppressWarnings(lubridate::ymd(vec))
-    if (all(is.na(parsed))) parsed <- suppressWarnings(lubridate::dmy(vec))
-    if (all(is.na(parsed))) parsed <- suppressWarnings(lubridate::mdy(vec))
-    # fallback: try parsing with anytime if available
-    if (exists("parsed") && all(is.na(parsed)) && requireNamespace("anytime", quietly = TRUE)) {
-      parsed <- suppressWarnings(anytime::anydate(vec))
+  # Determinar la columna de fecha y parsear robustamente
+  fecha_corte <- tryCatch({
+    if (nrow(repatriados_data) == 0 || ncol(repatriados_data) == 0) return(as.Date(NA))
+    col_name <- if ("fecha_repatriacion" %in% names(repatriados_data)) "fecha_repatriacion" else names(repatriados_data)[1]
+    vec <- repatriados_data[[col_name]]
+    parse_try <- function(x) {
+      p <- suppressWarnings(as.Date(x))
+      if (all(is.na(p))) p <- suppressWarnings(lubridate::ymd(x))
+      if (all(is.na(p))) p <- suppressWarnings(lubridate::dmy(x))
+      if (all(is.na(p))) p <- suppressWarnings(lubridate::mdy(x))
+      if (all(is.na(p)) && requireNamespace("anytime", quietly = TRUE)) p <- suppressWarnings(anytime::anydate(x))
+      as.Date(p)
     }
-    parsed <- as.Date(parsed)
-    if (all(is.na(parsed))) stop("could not parse date column")
-    max(parsed, na.rm = TRUE)
-  }
-}, error = function(e) {
-  # No mostrar una fecha alternativa si falla el parseo: devolver NA
-  as.Date(NA)
-})
+    if (inherits(vec, c("Date", "POSIXt"))) {
+      max(vec, na.rm = TRUE)
+    } else {
+      parsed <- parse_try(vec)
+      if (all(is.na(parsed))) return(as.Date(NA))
+      max(parsed, na.rm = TRUE)
+    }
+  }, error = function(e) as.Date(NA))
+
+  list(repatriados_data = repatriados_data, fecha_corte = fecha_corte)
+}

@@ -78,11 +78,22 @@ header.barra-logo .header-nav a:hover {
 }
 
 .page-subtitle {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem; /* espacio entre label y fecha */
   font-size: 1.4rem;
   color: #6c757d; /* Un color gris para diferenciarlo */
   margin-top: 0;
   margin-bottom: 2rem;
+}
+
+/* Fecha inline para la sección origen */
+.fecha-origen-inline {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-weight: 600;
+  color: #333;
 }
 
 .titulo-barra {

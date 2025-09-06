@@ -11,7 +11,8 @@ origen_section_ui <- if (exists("mod_origen_ui")) mod_origen_ui("origen1") else 
 
 ui <- htmlTemplate(
   "www/index.html",
-  fecha_corte_placeholder = textOutput("fecha_corte_texto", inline = TRUE),
+  fecha_corte_home = textOutput("fecha_corte_texto_home", inline = TRUE),
+  fecha_corte_origen = textOutput("fecha_corte_texto_origen", inline = TRUE),
   home_section = home_section_ui,
   origen_section = origen_section_ui
 )

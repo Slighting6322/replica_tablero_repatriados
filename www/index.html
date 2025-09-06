@@ -28,7 +28,7 @@
         <!-- SECCIÓN: INICIO -->
         <section id="seccion-home" class="seccion" data-seccion="home">
           <h1 class="page-title">Ocupación por centro de atención</h1>
-          <p class="page-subtitle">Fecha de corte: {{fecha_corte_placeholder}}</p>
+          <p class="page-subtitle">Fecha de corte: {{fecha_corte_home}}</p>
           <h2 class="titulo-barra">Ocupación general:</h2>
           <!-- Contenido principal / placeholder para el módulo home -->
           {{home_section}}
@@ -37,8 +37,7 @@
         <!-- SECCIÓN: ORIGEN (oculta por defecto) -->
         <section id="seccion-origen" class="seccion" data-seccion="origen" style="display:none;">
           <h1 class="page-title">Deportaciones desde EEUU</h1>
-          <p class="page-subtitle">Fecha de corte: {{fecha_corte_placeholder}}</p>
-          <!-- Placeholder para el módulo origen -->
+          <!-- Placeholder para el módulo origen (el módulo mostrará su propia Fecha de corte si corresponde) -->
           {{origen_section}}
         </section>
 
@@ -83,8 +82,22 @@
         }
 
         // Mostrar según hash al cargar
-        const hash = location.hash.replace('#', '');
-        if (hash === 'origen') showSection('origen'); else showSection('home');
+          const hash = location.hash.replace('#', '');
+          if (hash === 'origen') showSection('origen'); else showSection('home');
+
+          // Sincronizar visualmente las fechas entre las dos secciones si falta en una
+          function syncFecha() {
+            const h = document.getElementById('fecha_corte_texto_home');
+            const o = document.getElementById('fecha_corte_texto_origen');
+            if (!h || !o) return;
+            const hv = h.textContent && h.textContent.trim();
+            const ov = o.textContent && o.textContent.trim();
+            if (hv && !ov) o.textContent = hv;
+            if (ov && !hv) h.textContent = ov;
+          }
+          // ejecutar al cargar y cuando cambie el hash
+          syncFecha();
+          window.addEventListener('hashchange', syncFecha);
       });
     })();
   </script>

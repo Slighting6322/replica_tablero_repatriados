@@ -16,12 +16,27 @@ if (dir.exists(mods_dir)) {
   }
 }
 
-function(input, output, session) {
+# Validar que `fecha_corte` exista y sea una Date válida en el entorno global antes de levantar el server.
+if (!exists("fecha_corte")) {
+  stop("[server.R] Fecha de corte ('fecha_corte') no encontrada en el entorno global. Asegúrate de ejecutar app.R que inicializa los datos.")
+}
+if (is.null(fecha_corte) || is.na(fecha_corte) || !inherits(fecha_corte, "Date")) {
+  stop(sprintf("[server.R] Fecha de corte inválida: %s (clase: %s). La app requiere una fecha de corte válida en global.R/app.R.",
+               paste0(capture.output(str(fecha_corte)), collapse = " "), class(fecha_corte)))
+}
+
+server <- function(input, output, session) {
 
   # Reactive con la fecha de corte (definida en global.R)
   fecha_reactivo <- reactive({
-    # fecha_corte debe venir de global.R (Date/POSIX). Fallback a Sys.Date() si falta.
-    if (exists("fecha_corte") && !is.null(fecha_corte)) fecha_corte else Sys.Date()
+    # No usar fallback silencioso a Sys.Date(): exigir fecha válida y detener si falta.
+    if (!exists("fecha_corte")) {
+      stop("[server.R] fecha_corte no encontrada en el entorno global. Ejecuta la app via app.R para inicializar datos.")
+    }
+    if (is.null(fecha_corte) || is.na(fecha_corte) || !inherits(fecha_corte, "Date")) {
+      stop("[server.R] fecha_corte inválida: se requiere una Date válida en global.R/app.R. La ejecución se detiene.")
+    }
+    fecha_corte
   })
 
   # Renderizar el texto de la fecha de corte (formato en español)
@@ -30,6 +45,12 @@ function(input, output, session) {
     tryCatch({
       mod_fecha_server("fecha_home", fecha_reactivo = fecha_reactivo)
       mod_fecha_server("fecha_origen", fecha_reactivo = fecha_reactivo)
+      # Forzar que el output no se suspenda aunque la sección esté oculta
+      tryCatch({
+        outputOptions(output, "fecha_origen-fecha", suspendWhenHidden = FALSE)
+      }, error = function(e) {
+        message(sprintf("[server] outputOptions error para fecha_origen-fecha: %s", e$message))
+      })
       message("[server] mounted mod_fecha for home and origen")
     }, error = function(e) message("Error mounting mod_fecha: ", e$message))
   } else {

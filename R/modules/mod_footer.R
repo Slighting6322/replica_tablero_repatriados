@@ -1,14 +1,13 @@
 ## Module: mod_footer.R
+# (Usa funciones de shiny: NS, tags, div, moduleServer)
 # Footer module implemented in R (replaces www/componentes/footer.js)
 mod_footer_ui <- function(id) {
   ns <- NS(id)
-  tagList(
-    tags$footer(id = ns("footer"), class = "footer-gob",
-                div(id = ns("footer-container"), class = "footer-container",
-                    div(class = "footer-logo",
-                        tags$img(src = "images/2025_IMAGOTIPO_HORIZONTAL PARA FONDO OBSCURO.png", alt = "Logo Gob", style = "height: 100px;"))
-                )
-    )
+  tags$footer(id = ns("footer"), class = "footer-gob",
+              div(class = "footer-logo",
+                  tags$img(src = "images/2025_IMAGOTIPO_HORIZONTAL PARA FONDO OBSCURO.png",
+                           alt = "Logo Gob",
+                           style = "height:100px; max-width:100%; display:block; margin:0 auto;"))
   )
 }
 

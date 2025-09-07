@@ -28,7 +28,9 @@ init_app_data <- function(path = "data/repatriados_sample.csv") {
 
   # Determinar la columna de fecha y parsear robustamente
   fecha_corte <- tryCatch({
-    if (nrow(repatriados_data) == 0 || ncol(repatriados_data) == 0) return(as.Date(NA))
+    if (nrow(repatriados_data) == 0 || ncol(repatriados_data) == 0) {
+      stop("[init_app_data] El archivo de datos está vacío o no tiene columnas.")
+    }
     col_name <- if ("fecha_repatriacion" %in% names(repatriados_data)) "fecha_repatriacion" else names(repatriados_data)[1]
     vec <- repatriados_data[[col_name]]
     parse_try <- function(x) {
@@ -40,13 +42,17 @@ init_app_data <- function(path = "data/repatriados_sample.csv") {
       as.Date(p)
     }
     if (inherits(vec, c("Date", "POSIXt"))) {
-      max(vec, na.rm = TRUE)
+      fecha_max <- suppressWarnings(max(vec, na.rm = TRUE))
     } else {
       parsed <- parse_try(vec)
-      if (all(is.na(parsed))) return(as.Date(NA))
-      max(parsed, na.rm = TRUE)
+      if (all(is.na(parsed))) stop("[init_app_data] No se pudo encontrar una fecha válida en la columna '" , col_name , "' del archivo de datos.")
+      fecha_max <- suppressWarnings(max(parsed, na.rm = TRUE))
     }
-  }, error = function(e) as.Date(NA))
+    if (is.na(fecha_max) || is.infinite(fecha_max)) stop("[init_app_data] No se pudo determinar la fecha de corte (todas las fechas son NA o Inf).")
+    fecha_max
+  }, error = function(e) {
+    stop(e)
+  })
 
   list(repatriados_data = repatriados_data, fecha_corte = fecha_corte)
 }

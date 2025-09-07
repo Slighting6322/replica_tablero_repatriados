@@ -9,9 +9,29 @@ if (file.exists("global.R")) source("global.R")
 # Inicializar datos y exponer variables globales
 if (exists("init_app_data")) {
 	app_data <- init_app_data()
+	# Validar que la fecha de corte sea válida (no NA, no Inf)
+	if (is.null(app_data$fecha_corte) || is.na(app_data$fecha_corte) || is.infinite(app_data$fecha_corte)) {
+		stop("[app.R] Error: No se pudo determinar una fecha de corte válida a partir del archivo de datos. El proceso se detiene.")
+	}
 	# asignar en el entorno global para que ui/server los puedan usar
 	assign("repatriados_data", app_data$repatriados_data, envir = .GlobalEnv)
 	assign("fecha_corte", app_data$fecha_corte, envir = .GlobalEnv)
+
+	# Verificar que la fecha asignada coincide con la calculada directamente del CSV
+	# (ayuda a detectar si alguna otra parte del entorno sobrescribe la variable)
+	expected_fecha <- tryCatch({
+		if (exists("get_fecha_corte")) {
+			get_fecha_corte(path = "data/repatriados_sample.csv")
+		} else {
+			NA
+		}
+	}, error = function(e) NA)
+
+	message(sprintf("[app.R] fecha_corte (asignada) = %s (clase: %s)", as.character(app_data$fecha_corte), class(app_data$fecha_corte)))
+	message(sprintf("[app.R] fecha_corte (esperada desde CSV) = %s (clase: %s)", as.character(expected_fecha), class(expected_fecha)))
+	if (is.na(expected_fecha) || is.na(app_data$fecha_corte) || as.Date(expected_fecha) != as.Date(app_data$fecha_corte)) {
+		stop("[app.R] Inconsistencia: la fecha de corte calculada no coincide con la esperada a partir del CSV. El proceso se detiene para evitar mostrar una fecha equivocada.")
+	}
 } else {
 	warning("init_app_data() not found; global variables not initialized")
 }

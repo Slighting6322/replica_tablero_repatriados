@@ -10,7 +10,7 @@ if (dir.exists(mods_dir)) {
 }
 
 # Build UI fully in R so body is reactive and modules are inserted directly
-ui <- fluidPage(
+ui <- fluidPage(class = "app-root-full",
   tags$head(
     # Shiny dependencies are added by fluidPage; include fonts and CSS
     tags$link(href = "https://fonts.googleapis.com/css2?family=Inter&family=Montserrat&family=Noto+Sans&display=swap", rel = "stylesheet"),
@@ -50,10 +50,9 @@ ui <- fluidPage(
               )
 
           )
-      ),
-
-  # footer module
-  if (exists("mod_footer_ui")) mod_footer_ui("footer1") else HTML("<footer-gob></footer-gob>")
+    ),
+  # footer module (sin clase experimental full-bleed)
+  if (exists("mod_footer_ui")) mod_footer_ui("footer1") else HTML("<footer class='footer-gob'></footer>")
   ),
 
   # Router / section manager script (migrated from index.html; without DOM-based fecha sync)

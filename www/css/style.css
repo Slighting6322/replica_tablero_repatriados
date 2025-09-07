@@ -33,6 +33,10 @@
   ========================= */
 :root {
   --Primary-Color-GOB-MX: #611232;
+  /* Alturas reutilizables */
+  --header-height: 80px; /* valor actual en el CSS */
+  --header-gap: 10px;    /* espacio extra entre header y contenido */
+  --footer-min-height: 80px; /* valor actual para footer */
 }
 
 /* Elimina el padding lateral impuesto por Bootstrap (.container-fluid) que generaba el espacio blanco */
@@ -76,7 +80,7 @@ html {
 }
 
 .page-wrapper {
-  margin-top: 90px; /* Espacio para el header fijo de 120px */
+  margin-top: calc(var(--header-height) + var(--header-gap)); /* Espacio para el header fijo */
   padding: 1rem 2rem;
   flex-grow: 1; /* Asegura que el contenido ocupe el espacio disponible */
 }
@@ -90,7 +94,7 @@ html {
   left: 0;
   width: 100%;
   background: var(--Primary-Color-GOB-MX, #611232);
-  height: 80px;
+  height: var(--header-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -183,13 +187,14 @@ header.barra-logo .header-nav a:hover {
   background: var(--Primary-Color-GOB-MX, #611232);
   color: #fff;
   width: 100%;
-  min-height: 90px;
+  min-height: var(--footer-min-height);
   padding: 1.25rem 0; /* menor altura */
   box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: flex-start; /* alineación hacia la izquierda */
   overflow: hidden;
+  position: relative; /* para posicionar el logo absoluto dentro del footer */
 }
 
 .footer-gob .footer-inner {
@@ -201,6 +206,27 @@ header.barra-logo .header-nav a:hover {
   display: flex;
   align-items: center;
   justify-content: flex-start;
+}
+
+/* Alinear el logo del footer al mismo X que el logo del header (20px desde la izquierda) */
+.footer-gob .footer-logo {
+  position: static;
+  left: auto;
+  top: auto;
+  transform: none;
+  margin-left: 40px; /* desplazar logo del footer hacia la derecha */
+}
+
+/* Asegurar que header-inner y footer-inner tengan la misma anchura y padding para alinear logos */
+.header-inner, .footer-inner {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px; /* Igual que el padding de .barra-logo */
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .footer-gob .footer-logo img { height: 70px; width: auto; }

@@ -14,7 +14,8 @@ ui <- fluidPage(class = "app-root-full",
   tags$head(
     # Shiny dependencies are added by fluidPage; include fonts and CSS
     tags$link(href = "https://fonts.googleapis.com/css2?family=Inter&family=Montserrat&family=Noto+Sans&display=swap", rel = "stylesheet"),
-    tags$link(rel = "stylesheet", href = "css/style.css"),
+  # Forzar recarga del CSS cuando se hacen cambios: se añade query string de versión
+  tags$link(rel = "stylesheet", href = "css/style.css?v=2"),
     tags$title("Tablero")
   ),
 

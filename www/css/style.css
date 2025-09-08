@@ -1,4 +1,60 @@
 /* =========================
+  TARJETAS KPI MINIMALISTAS
+  ========================= */
+.kpi-cards-grid {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto 2.5rem auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.2rem;
+  align-items: stretch;
+}
+@media (max-width: 1100px) {
+  .kpi-cards-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .kpi-cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .kpi-cards-grid { grid-template-columns: 1fr; }
+}
+.kpi-card {
+  background: #f9f9f9;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 1rem;
+  box-shadow: none;
+  padding: 1rem .85rem .9rem .85rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+  min-height: 120px;
+  height: 100%;
+  transition: box-shadow .2s;
+}
+.kpi-card:hover {
+  box-shadow: 0 2px 12px rgba(27,92,79,0.08);
+  border-color: #b2dfdb;
+}
+.kpi-value {
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: #1b5c4f;
+  margin-bottom: .35rem;
+  word-break: break-word;
+  line-height: 1.05;
+}
+.kpi-label {
+  font-size: .95rem;
+  color: #444;
+  text-align: center;
+  font-weight: 600;
+  word-break: break-word;
+  line-height: 1.15;
+}
+/* =========================
   LAYOUT PRINCIPAL DE LA PÁGINA
   ========================= */
 .page {
@@ -174,11 +230,11 @@ header.barra-logo .header-nav a:hover {
 
 .titulo-barra {
   text-align: center;
-  font-size: 2.3rem;
+  font-size: 2.0rem;
   font-weight: bold;
   color: #333;
   margin-top: 2.2rem; /* Aumenta la separación arriba del título */
-  margin-bottom: 1rem;
+  margin-bottom: 2.5rem;
 }
 
 /* =========================
@@ -216,7 +272,7 @@ header.barra-logo .header-nav a:hover {
   left: auto;
   top: auto;
   transform: none;
-  margin-left: 40px; /* desplazar logo del footer hacia la derecha */
+  margin-left: 0; /* sin desplazamiento adicional */
 }
 
 /* Asegurar que header-inner y footer-inner tengan la misma anchura y padding para alinear logos */
@@ -258,10 +314,7 @@ body > div.container-fluid { padding-left:0 !important; padding-right:0 !importa
 /* =========================
   DEBUG FOOTER (temporal)
   ========================= */
-body .footer-gob {
-  outline: 3px dashed #ffcc00 !important;
-  box-shadow: 0 0 0 4px rgba(255,204,0,0.35) inset !important;
-}
+/* Eliminado modo debug del footer (outline y box-shadow) */
 
 /* Contenedor interno opcional para limitar solo el contenido visual manteniendo fondo full-width */
 body .footer-gob > .footer-inner {
@@ -278,12 +331,47 @@ body .footer-gob > .footer-inner {
 /* =========================
   BARRA DE PROGRESO OCUPACIÓN
   ========================= */
-.ocupacion-progress-wrapper { max-width: 780px; margin: 0 auto 3rem auto; padding: 0 1rem; }
+.ocupacion-progress-wrapper { max-width: 1100px; margin: 0 auto 3rem auto; padding: 0 1rem; }
 .ocupacion-progress-title { text-align:center; font-size:1.4rem; margin:0 0 .75rem 0; font-weight:600; }
 .progress-meta { text-align:center; margin-bottom: .4rem; font-size:1.1rem; font-weight:500; color:#333; }
-.progress-bar-outer { position:relative; width:100%; height:34px; background:#eee; border-radius: 6px; overflow:hidden; box-shadow: inset 0 0 0 1px #ccc; }
-.progress-bar-inner { position:absolute; top:0; left:0; height:100%; background: linear-gradient(90deg, #611232, #8a1b47); color:#fff; display:flex; align-items:center; justify-content:flex-end; padding-right:8px; font-size:.95rem; font-weight:600; letter-spacing:.5px; transition: width .6s ease; }
+/* Número debajo de la barra */
+.progress-numeros {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-top: 3.2rem;
+  gap: 1.5rem;
+}
+.progress-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1 1 0;
+}
+.progress-col-actual { align-items: flex-start; }
+.progress-col-total { align-items: flex-end; }
+.progress-actual, .progress-total {
+  font-size: 2.2rem;
+  font-weight: 700 !important;
+  color: #1b5c4f;
+  line-height: 1.1;
+}
+.progress-label {
+  font-size: 2.2rem;
+  font-weight: 700 !important;
+  color: #1b5c4f;
+  margin-top: .35rem;
+  line-height: 1.1;
+  letter-spacing: .01em;
+}
+.progress-numeros .progress-actual { color:#1b5c4f; font-weight:700; }
+.progress-numeros .progress-total { color:#1b5c4f; font-weight:700; text-align:right; }
+.progress-numeros .progress-pct { font-weight:500; color:#444; }
+.progress-bar-outer { position:relative; width:100%; height:34px; background:#eee; border-radius: 6px; overflow:hidden; box-shadow: inset 0 0 0 1px #ccc; margin-bottom: 1.2rem; }
+.progress-bar-inner { position:absolute; top:0; left:0; height:100%; background: #1b5c4f; color:#fff; display:flex; align-items:center; justify-content:flex-end; padding-right:8px; font-size:.95rem; font-weight:600; letter-spacing:.5px; transition: width .6s ease; }
 .progress-error { text-align:center; color:#b30000; font-size:.95rem; font-weight:500; }
 .progress-fallback { text-align:center; font-size:.9rem; color:#777; margin-bottom:1rem; }
-.progress-bar-inner::after { content: attr(aria-valuenow) "%"; }
+/* Removed in order to hide percentage text inside the progress bar */
+/* .progress-bar-inner::after { content: attr(aria-valuenow) "%"; } */
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }

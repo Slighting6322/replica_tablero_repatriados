@@ -74,6 +74,13 @@ server <- function(input, output, session) {
       error = function(e) message("mod_home_server error: ", e$message)
     )
   }
+  # Montar tarjetas KPI si el módulo existe
+  if (exists("mod_kpi_cards_grid_server")) {
+    tryCatch(
+      mod_kpi_cards_grid_server("kpi_grid1"),
+      error = function(e) message("mod_kpi_cards_grid_server error: ", e$message)
+    )
+  }
   # Montar barra de progreso de ocupación si el módulo existe
   if (exists("mod_progress_bar_server")) {
     tryCatch(

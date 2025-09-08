@@ -48,17 +48,24 @@ mod_progress_bar_server <- function(id, path = "data/barra_personas.csv", format
       pct <- round(d$porcentaje, 1)
       actual_fmt <- formato_num(d$actual)
       total_fmt  <- formato_num(d$total)
-      texto <- paste0(actual_fmt, " / ", total_fmt, " (", pct, "%)")
-
-      # Barra accesible
+      # Texto solo con porcentaje para accesibilidad dentro (screen reader) y número principal debajo
       shiny::tagList(
-        shiny::div(class = "progress-meta", shiny::span(class = "progress-texto", texto)),
         shiny::div(class = "progress-bar-outer", 
             shiny::div(class = "progress-bar-inner", style = paste0("width:", pct, "%;"), 
                 `aria-valuenow` = pct, `aria-valuemin` = 0, `aria-valuemax` = 100,
                 role = "progressbar",
                 shiny::span(class = "sr-only", paste0(pct, "%"))
             )
+        ),
+        shiny::div(class = "progress-numeros",
+          shiny::div(class = "progress-col progress-col-actual",
+            shiny::span(class = "progress-actual", actual_fmt),
+            shiny::div(class = "progress-label", "Personas Alojadas")
+          ),
+          shiny::div(class = "progress-col progress-col-total",
+            shiny::span(class = "progress-total", total_fmt),
+            shiny::div(class = "progress-label", "Lugares Disponibles")
+          )
         )
       )
     })

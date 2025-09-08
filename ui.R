@@ -42,6 +42,8 @@ ui <- fluidPage(class = "app-root-full",
                            )),
                            # Barra de progreso de ocupación (modular)
                            if (exists("mod_progress_bar_ui")) mod_progress_bar_ui("ocupacion_bar1") else div(class="progress-fallback", "(Barra de ocupación no disponible)"),
+                           # Tarjetas KPI debajo de la barra
+                           if (exists("mod_kpi_cards_grid_ui")) mod_kpi_cards_grid_ui("kpi_grid1") else div(class="kpi-cards-fallback", "(Indicadores no disponibles)"),
                            if (exists("mod_home_ui")) mod_home_ui("home1") else div(id = "home-module-placeholder")
               ),
 

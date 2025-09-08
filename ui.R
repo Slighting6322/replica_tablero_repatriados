@@ -36,7 +36,12 @@ ui <- fluidPage(class = "app-root-full",
                              "Fecha de corte: ",
                              if (exists("mod_fecha_ui")) mod_fecha_ui("fecha_home", inline = TRUE) else textOutput("fecha_corte_texto_home", inline = TRUE)
                            ),
-                           h2(class = "titulo-barra", "Ocupación general:"),
+                           h2(class = "titulo-barra", paste0(
+                             "Ocupación General: ",
+                             if (!is.na(porcentaje_ocupacion)) paste0(porcentaje_ocupacion, "%") else ""
+                           )),
+                           # Barra de progreso de ocupación (modular)
+                           if (exists("mod_progress_bar_ui")) mod_progress_bar_ui("ocupacion_bar1") else div(class="progress-fallback", "(Barra de ocupación no disponible)"),
                            if (exists("mod_home_ui")) mod_home_ui("home1") else div(id = "home-module-placeholder")
               ),
 

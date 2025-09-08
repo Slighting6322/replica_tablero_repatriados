@@ -74,6 +74,13 @@ server <- function(input, output, session) {
       error = function(e) message("mod_home_server error: ", e$message)
     )
   }
+  # Montar barra de progreso de ocupación si el módulo existe
+  if (exists("mod_progress_bar_server")) {
+    tryCatch(
+      mod_progress_bar_server("ocupacion_bar1"),
+      error = function(e) message("mod_progress_bar_server error: ", e$message)
+    )
+  }
   if (exists("mod_origen_server")) {
     tryCatch(
       mod_origen_server("origen1", fecha_reactivo = fecha_reactivo),

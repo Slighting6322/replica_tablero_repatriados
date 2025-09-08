@@ -5,7 +5,7 @@ mod_header_ui <- function(id) {
   tagList(
     tags$header(class = "barra-logo",
                 div(class = "logo-titulo",
-                    tags$img(src = "images/Horizontal Gobierno de México_01.png", alt = "Logo del gobierno", style = "height: 80px;")),
+                    tags$img(src = "images/Horizontal Gobierno de México_01.png", alt = "Logo del gobierno", style = "height: 150px;")),
                 tags$nav(class = "header-nav",
                          tags$a(href = "#home", class = "nav-link", "Ocupación por Centro de Atención"),
                          tags$a(href = "#origen", class = "nav-link", "Origen y Destino")

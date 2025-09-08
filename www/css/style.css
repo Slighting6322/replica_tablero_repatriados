@@ -34,9 +34,9 @@
 :root {
   --Primary-Color-GOB-MX: #611232;
   /* Alturas reutilizables */
-  --header-height: 80px; /* valor actual en el CSS */
+  --header-height: 100px; /* valor actual en el CSS */
   --header-gap: 10px;    /* espacio extra entre header y contenido */
-  --footer-min-height: 80px; /* valor actual para footer */
+  --footer-min-height: 100px; /* valor actual para footer */
 }
 
 /* Elimina el padding lateral impuesto por Bootstrap (.container-fluid) que generaba el espacio blanco */
@@ -73,6 +73,8 @@ body {
   display: flex;
   flex-direction: column;
   /* (debug removido) */
+
+}
 
 html {
   box-sizing: border-box;
@@ -145,7 +147,7 @@ header.barra-logo .header-nav a:hover {
   ========================= */
 .page-title {
   text-align: center;
-  font-size: 1.75rem; /* Un poco más pequeño que el h1 por defecto */
+  font-size: 2.8rem; /* Un poco más pequeño que el h1 por defecto */
   font-weight: 600;
   color: #333;
   margin-bottom: 1rem;
@@ -156,26 +158,26 @@ header.barra-logo .header-nav a:hover {
   align-items: center;
   justify-content: center;
   gap: 0.5rem; /* espacio entre label y fecha */
-  font-size: 1.4rem;
+  font-size: 2.1rem;
   color: #6c757d; /* Un color gris para diferenciarlo */
   margin-top: 0;
-  margin-bottom: 2rem;
+  margin-bottom: 4rem; /* Aumenta la separación debajo de la fecha */
 }
 
 /* Fecha inline para la sección origen */
 .fecha-origen-inline {
   display: inline-block;
-  margin-left: 0.5rem;
+  margin-left: 1.6rem;
   font-weight: 600;
   color: #333;
 }
 
 .titulo-barra {
   text-align: center;
-  font-size: 1.25rem;
+  font-size: 2.3rem;
   font-weight: bold;
   color: #333;
-  margin-top: 1.5rem;
+  margin-top: 2.2rem; /* Aumenta la separación arriba del título */
   margin-bottom: 1rem;
 }
 
@@ -272,3 +274,16 @@ body .footer-gob > .footer-inner {
   justify-content: center;
   align-items: center;
 }
+
+/* =========================
+  BARRA DE PROGRESO OCUPACIÓN
+  ========================= */
+.ocupacion-progress-wrapper { max-width: 780px; margin: 0 auto 3rem auto; padding: 0 1rem; }
+.ocupacion-progress-title { text-align:center; font-size:1.4rem; margin:0 0 .75rem 0; font-weight:600; }
+.progress-meta { text-align:center; margin-bottom: .4rem; font-size:1.1rem; font-weight:500; color:#333; }
+.progress-bar-outer { position:relative; width:100%; height:34px; background:#eee; border-radius: 6px; overflow:hidden; box-shadow: inset 0 0 0 1px #ccc; }
+.progress-bar-inner { position:absolute; top:0; left:0; height:100%; background: linear-gradient(90deg, #611232, #8a1b47); color:#fff; display:flex; align-items:center; justify-content:flex-end; padding-right:8px; font-size:.95rem; font-weight:600; letter-spacing:.5px; transition: width .6s ease; }
+.progress-error { text-align:center; color:#b30000; font-size:.95rem; font-weight:500; }
+.progress-fallback { text-align:center; font-size:.9rem; color:#777; margin-bottom:1rem; }
+.progress-bar-inner::after { content: attr(aria-valuenow) "%"; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }

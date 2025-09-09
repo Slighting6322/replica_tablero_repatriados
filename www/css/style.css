@@ -20,6 +20,11 @@
   align-items: center;
   justify-content: center;
 }
+
+/* Separación extra específica cuando los filtros se muestran debajo del mapa */
+.filters-row.mapa-filtros {
+  margin-top: 10rem; /* aumenta separación del mapa */
+}
 .filter-dropdown, .filter-number {
   flex: 0 0 16%;
   min-width: 140px;
@@ -244,6 +249,7 @@ html {
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
+  z-index: 1000;
 }
 /* (Se eliminó duplicado que usaba 100vw para evitar gap lateral y saltos) */
 
@@ -418,7 +424,7 @@ body .footer-gob > .footer-inner {
 /* =========================
   BARRA DE PROGRESO OCUPACIÓN
   ========================= */
-.ocupacion-progress-wrapper { max-width: 1100px; margin: 0 auto 3rem auto; padding: 0 1rem; }
+.ocupacion-progress-wrapper { max-width: 1100px; margin: 0 auto 3rem auto; padding: 0 1rem; position:relative; z-index: 10; }
 .ocupacion-progress-title { text-align:center; font-size:1.4rem; margin:0 0 .75rem 0; font-weight:600; }
 .progress-meta { text-align:center; margin-bottom: .4rem; font-size:1.1rem; font-weight:500; color:#333; }
 /* Número debajo de la barra */

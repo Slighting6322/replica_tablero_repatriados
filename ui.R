@@ -47,7 +47,21 @@ ui <- fluidPage(class = "app-root-full",
                            div(class = "subtitulo-filtro-centros", "Filtro de Centros de Atención"),
                            if (exists("mod_filters_row_ui")) mod_filters_row_ui("filtros1") else div(class = "filters-row-fallback", "(Controles no disponibles)"),
                            if (exists("mod_home_ui")) mod_home_ui("home1") else div(id = "home-module-placeholder"),
-                           if (exists("mod_centros_mapa_ui")) mod_centros_mapa_ui("centrosmapa1") else div(class = "mapa-centros-fallback", "(Mapa de centros no disponible)")
+                           if (exists("mod_centros_mapa_ui")) mod_centros_mapa_ui("centrosmapa1") else div(class = "mapa-centros-fallback", "(Mapa de centros no disponible)"),
+               ## FILTROS DE MAPA (debajo del mapa) - alineados horizontalmente
+                          div(class = "filters-row mapa-filtros", style = "max-width:1100px;",
+                 if (exists("mod_filters_dropdown_ui")) mod_filters_dropdown_ui("map_dd_entidad", label = "Entidad:") else div(class = "filter-dropdown", "(Dropdown no disponible)"),
+                 if (exists("mod_filters_buttons_ui")) mod_filters_buttons_ui("map_btns") else div(class = "filter-buttons", "(Botones no disponibles)")
+               ),
+               # Segunda barra de progreso (debajo de la fila de filtros del mapa)
+               h2(class = "titulo-barra", paste0(
+                 "Ocupación General: ",
+                 if (!is.na(porcentaje_ocupacion)) paste0(porcentaje_ocupacion, "%") else ""
+               )),
+               if (exists("mod_progress_bar_ui")) mod_progress_bar_ui("ocupacion_bar2") else div(class = "progress-fallback", "(Barra secundaria no disponible)")
+              ,
+              # Segundo arreglo de tarjetas KPI (debajo de la segunda barra)
+              if (exists("mod_kpi_cards_grid_ui")) mod_kpi_cards_grid_ui("kpi_grid2") else div(class = "kpi-cards-fallback", "(Indicadores secundarios no disponibles)")
               ),
 
               # ORIGEN SECTION (hidden by default)

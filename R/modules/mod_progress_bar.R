@@ -14,10 +14,25 @@ mod_progress_bar_ui <- function(id, titulo = NULL, mostrar_texto = TRUE) {
   )
 }
 
-mod_progress_bar_server <- function(id, path = "data/barra_personas.csv", formato_num = function(x) format(x, big.mark = ",", scientific = FALSE)) {
+mod_progress_bar_server <- function(id, path = "data/barra_personas.csv", external_values = NULL, formato_num = function(x) format(x, big.mark = ",", scientific = FALSE)) {
+  # external_values: optional reactive that returns a list(actual=..., total=...) to override file input
   shiny::moduleServer(id, function(input, output, session) {
 
   datos_reactivo <- shiny::reactive({
+      # If external_values reactive is provided and returns a valid list, use it
+      if (!is.null(external_values)) {
+        ev <- tryCatch({ external_values() }, error = function(e) NULL)
+        if (!is.null(ev) && is.list(ev) && !is.null(ev$actual) && !is.null(ev$total)) {
+          actual <- suppressWarnings(as.numeric(ev$actual))
+          total  <- suppressWarnings(as.numeric(ev$total))
+          if (!is.na(actual) && !is.na(total) && total > 0) {
+            porcentaje <- pmin(100, (actual / total) * 100)
+            return(list(actual = actual, total = total, porcentaje = porcentaje))
+          }
+        }
+        # If external provided but invalid, fallthrough to file read
+      }
+
       df <- tryCatch({
         if (!file.exists(path)) stop("Archivo no encontrado: ", path)
         suppressWarnings(read.csv(path, header = TRUE, check.names = FALSE, strip.white = TRUE))

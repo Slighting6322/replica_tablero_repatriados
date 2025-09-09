@@ -44,7 +44,10 @@ ui <- fluidPage(class = "app-root-full",
                            if (exists("mod_progress_bar_ui")) mod_progress_bar_ui("ocupacion_bar1") else div(class="progress-fallback", "(Barra de ocupación no disponible)"),
                            # Tarjetas KPI debajo de la barra
                            if (exists("mod_kpi_cards_grid_ui")) mod_kpi_cards_grid_ui("kpi_grid1") else div(class="kpi-cards-fallback", "(Indicadores no disponibles)"),
-                           if (exists("mod_home_ui")) mod_home_ui("home1") else div(id = "home-module-placeholder")
+                           div(class = "subtitulo-filtro-centros", "Filtro de Centros de Atención"),
+                           if (exists("mod_filters_row_ui")) mod_filters_row_ui("filtros1") else div(class = "filters-row-fallback", "(Controles no disponibles)"),
+                           if (exists("mod_home_ui")) mod_home_ui("home1") else div(id = "home-module-placeholder"),
+                           if (exists("mod_centros_mapa_ui")) mod_centros_mapa_ui("centrosmapa1") else div(class = "mapa-centros-fallback", "(Mapa de centros no disponible)")
               ),
 
               # ORIGEN SECTION (hidden by default)

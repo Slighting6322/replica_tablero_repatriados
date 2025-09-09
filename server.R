@@ -27,6 +27,21 @@ if (is.null(fecha_corte) || is.na(fecha_corte) || !inherits(fecha_corte, "Date")
 
 server <- function(input, output, session) {
 
+  # Leer datos de centros de atención
+  centros_data <- tryCatch({
+    read.csv("data/centros_atencion.csv", stringsAsFactors = FALSE)
+  }, error = function(e) {
+    message("No se pudo leer centros_atencion.csv: ", e$message)
+    NULL
+  })
+  # Montar el módulo del mapa de centros si existe y los datos están disponibles
+  if (exists("mod_centros_mapa_server") && !is.null(centros_data)) {
+    tryCatch(
+      mod_centros_mapa_server("centrosmapa1", data = centros_data),
+      error = function(e) message("mod_centros_mapa_server error: ", e$message)
+    )
+  }
+
   # Reactive con la fecha de corte (definida en global.R)
   fecha_reactivo <- reactive({
     # No usar fallback silencioso a Sys.Date(): exigir fecha válida y detener si falta.

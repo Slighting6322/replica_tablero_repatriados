@@ -66,14 +66,9 @@ server <- function(input, output, session) {
   }, silent = TRUE)
 
   # Fallback CSV si no obtuvimos datos desde xlsx
+  # Si no se obtuvieron datos desde xlsx, crear un data.frame vacío compatible
   if (is.null(deportaciones_data)) {
-    deportaciones_data <- tryCatch({
-      read.csv("data/deportaciones.csv", stringsAsFactors = FALSE)
-    }, error = function(e) {
-      message("No se pudo leer deportaciones.csv: ", e$message)
-      NULL
-    })
-    if (!is.null(deportaciones_data)) message("[server] usando 'data/deportaciones.csv' como fallback para el mapa de deportaciones")
+    deportaciones_data <- data.frame(Estados = character(0), Repatriados = integer(0), stringsAsFactors = FALSE)
   }
 
   if (exists("mod_deportaciones_mapa_server") && !is.null(deportaciones_data)) {
@@ -116,14 +111,9 @@ server <- function(input, output, session) {
   }, silent = TRUE)
 
   # Fallback CSV si no obtuvimos datos desde xlsx
+  # Si no se obtuvieron datos desde xlsx, crear un data.frame vacío compatible
   if (is.null(repatriaciones_data)) {
-    repatriaciones_data <- tryCatch({
-      read.csv("data/repatriaciones.csv", stringsAsFactors = FALSE)
-    }, error = function(e) {
-      message("No se pudo leer repatriaciones.csv: ", e$message)
-      NULL
-    })
-    if (!is.null(repatriaciones_data)) message("[server] usando 'data/repatriaciones.csv' como fallback para el mapa de repatriaciones MX")
+    repatriaciones_data <- data.frame(Estados = character(0), Repatriaciones = integer(0), Repatriados = integer(0), stringsAsFactors = FALSE)
   }
 
   if (exists("mod_repatriaciones_mx_server") && !is.null(repatriaciones_data)) {

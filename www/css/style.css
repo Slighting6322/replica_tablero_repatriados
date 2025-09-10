@@ -167,14 +167,14 @@
   margin: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start; /* Alinear a la izquierda por defecto */
   padding: 0;
 }
 
 .footer-logo {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start; /* asegurar que el logo no se centre dentro del logo container */
 }
 /* =========================
   VARIABLES
@@ -261,7 +261,7 @@ footer.footer-gob, .footer-gob { margin:0; padding-left:0; padding-right:0; back
   margin: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start; /* mantener alineación izquierda consistente */
   padding: 0;
   box-sizing: border-box;
 }
@@ -356,7 +356,7 @@ header.barra-logo .header-nav a:hover {
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: flex-start; /* asegurar contenido alineado a la izquierda */
 }
 
 /* Alinear el logo del footer al mismo X que el logo del header (20px desde la izquierda) */
@@ -366,6 +366,7 @@ header.barra-logo .header-nav a:hover {
   top: auto;
   transform: none;
   margin-left: 0; /* sin desplazamiento adicional */
+  padding-left: 0; /* forzar sin separación izquierda adicional */
 }
 
 /* Asegurar que header-inner y footer-inner tengan la misma anchura y padding para alinear logos */

@@ -4,7 +4,7 @@ library(leaflet)
 mod_deportaciones_mapa_ui <- function(id) {
   ns <- shiny::NS(id)
   div(
-    style = "max-width:800px;margin:0 auto;",
+    style = "max-width:900px;margin:0 auto;",
   leaflet::leafletOutput(ns("mapa_deportaciones"), height = 500),
   shiny::tags$div(class = "deportaciones-subtitulo", "Repatriaciones: Destino en México")
   )
@@ -13,8 +13,44 @@ mod_deportaciones_mapa_ui <- function(id) {
 #' Módulo Server para el mapa de deportaciones
 #' @param id id del módulo
 #' @param data dataframe con columnas Estados, Repatriados
-mod_deportaciones_mapa_server <- function(id, data) {
+#' @param xlsx_path opcional: ruta al archivo xlsx con los datos (se usa si `data` es NULL)
+#' @param xlsx_sheet nombre de la hoja dentro del xlsx (por defecto: "Repatriados")
+mod_deportaciones_mapa_server <- function(id, data = NULL, xlsx_path = "data/repatriados.xlsx", xlsx_sheet = "Repatriados") {
   shiny::moduleServer(id, function(input, output, session) {
+    # Si no se pasa 'data' o está vacío, intentar leer y agregar desde el xlsx usando el helper
+    if ((is.null(data) || (is.data.frame(data) && nrow(data) == 0))) {
+      tryCatch({
+        if (exists("agg_repatriados_from_xlsx", where = globalenv()) || exists("agg_repatriados_from_xlsx", where = asNamespace("R"))) {
+          # llamar la función del data_loader si está disponible
+          data_x <- tryCatch(agg_repatriados_from_xlsx(path = xlsx_path, sheet = xlsx_sheet), error = function(e) NULL)
+        } else {
+          # fallback: intentar cargar localmente si readxl está disponible
+          if (file.exists(xlsx_path) && requireNamespace("readxl", quietly = TRUE)) {
+            data_x <- tryCatch({
+              df_x <- readxl::read_excel(xlsx_path, sheet = xlsx_sheet)
+              # heurística simple: buscar columna 'estado' y agregar
+              nm_low <- tolower(names(df_x))
+              match_idx <- grep("estado", nm_low)
+              if (length(match_idx) == 0) stop("no state column detected")
+              state_col <- names(df_x)[match_idx[1]]
+              df_u <- unique(df_x)
+              vals <- as.character(df_u[[state_col]]); vals[is.na(vals)] <- "(sin_estado)"
+              tb <- as.data.frame(table(vals), stringsAsFactors = FALSE); names(tb) <- c("Estados","Repatriados"); tb$Repatriados <- as.integer(tb$Repatriados)
+              tb
+            }, error = function(e) NULL)
+          } else {
+            data_x <- NULL
+          }
+        }
+        if (!is.null(data_x) && is.data.frame(data_x) && nrow(data_x) > 0) {
+          data <- data_x
+          message(sprintf("[mod_deportaciones_mapa] Cargados %d estados agregados desde '%s' (hoja: %s)", nrow(data), xlsx_path, xlsx_sheet))
+        }
+      }, error = function(e) {
+        message("[mod_deportaciones_mapa] Error obteniendo datos desde xlsx: ", conditionMessage(e))
+      })
+    }
+
     # Cargar tabla de estados de EEUU con lat/lon centroides
     estados_coords <- data.frame(
       Estados = c("Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming"),
@@ -39,7 +75,16 @@ mod_deportaciones_mapa_server <- function(id, data) {
     # Intentar unir data con centroides de México
     data_map_mx <- merge(data, mexico_coords, by = "Estados", all.x = TRUE)
   # Contar coincidencias por latitud encontradas (normalizando nombres para comparar)
-  nm_data <- norm_name(data$Estados)
+  # Normalizar nombres en ambos lados para matching
+  if (exists("normalize_state_names", where = globalenv()) || exists("normalize_state_names", where = asNamespace("R"))) {
+    nm_data <- normalize_state_names(data$Estados)
+    nm_us <- normalize_state_names(as.character(estados_coords$Estados))
+    nm_mx <- normalize_state_names(as.character(mexico_coords$Estados))
+  } else {
+    nm_data <- norm_name(data$Estados)
+    nm_us <- norm_name(as.character(estados_coords$Estados))
+    nm_mx <- norm_name(as.character(mexico_coords$Estados))
+  }
   nm_us <- norm_name(as.character(estados_coords$Estados))
   nm_mx <- norm_name(as.character(mexico_coords$Estados))
   matches_us <- sum(nm_data %in% nm_us)

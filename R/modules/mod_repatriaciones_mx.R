@@ -5,8 +5,7 @@ mod_repatriaciones_mx_ui <- function(id) {
   ns <- shiny::NS(id)
   shiny::div(
     style = "max-width:900px;margin:0 auto;",
-    leaflet::leafletOutput(ns("mapa_repatriaciones"), height = 520),
-    shiny::tags$div(class = "deportaciones-subtitulo", "Repatriaciones: Destino en México")
+  leaflet::leafletOutput(ns("mapa_repatriaciones"), height = 520)
   )
 }
 

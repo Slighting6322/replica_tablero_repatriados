@@ -1,5 +1,10 @@
 library(testthat)
 
+# Ensure helpers are available when running tests (wd = tests/testthat)
+if (file.exists("../R/data_loader.R")) {
+  try(source("../R/data_loader.R"), silent = TRUE)
+}
+
 test_that("get_repatriados_data returns a tibble and contains expected columns", {
   skip_if_not(file.exists("data/repatriados_sample.csv"))
   df <- get_repatriados_data("data/repatriados_sample.csv")

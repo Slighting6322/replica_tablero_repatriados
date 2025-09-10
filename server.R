@@ -47,12 +47,35 @@ server <- function(input, output, session) {
     }, error = function(e) {})
 
   # Montar el módulo del mapa de deportaciones (EEUU) en la sección 'origen'
-  deportaciones_data <- tryCatch({
-    read.csv("data/deportaciones.csv", stringsAsFactors = FALSE)
-  }, error = function(e) {
-    message("No se pudo leer deportaciones.csv: ", e$message)
-    NULL
-  })
+  # Preferir agregación desde el xlsx 'data/repatriados.xlsx' si está disponible;
+  # en caso contrario, usar el CSV 'data/deportaciones.csv' como fallback.
+  deportaciones_data <- NULL
+  try({
+    xlsx_path <- "data/repatriados.xlsx"
+    if (file.exists(xlsx_path) && exists("agg_repatriados_from_xlsx", mode = "function")) {
+      # agg_repatriados_from_xlsx devuelve data.frame con columnas 'Estados' y 'Repatriados'
+      dat_x <- tryCatch(agg_repatriados_from_xlsx(path = xlsx_path, sheet = "Repatriados"), error = function(e) {
+        message("agg_repatriados_from_xlsx error: ", e$message)
+        NULL
+      })
+      if (!is.null(dat_x) && is.data.frame(dat_x) && nrow(dat_x) > 0) {
+        deportaciones_data <- dat_x
+        message(sprintf("[server] usando datos agregados desde '%s' (%d estados) para el mapa de deportaciones", xlsx_path, nrow(dat_x)))
+      }
+    }
+  }, silent = TRUE)
+
+  # Fallback CSV si no obtuvimos datos desde xlsx
+  if (is.null(deportaciones_data)) {
+    deportaciones_data <- tryCatch({
+      read.csv("data/deportaciones.csv", stringsAsFactors = FALSE)
+    }, error = function(e) {
+      message("No se pudo leer deportaciones.csv: ", e$message)
+      NULL
+    })
+    if (!is.null(deportaciones_data)) message("[server] usando 'data/deportaciones.csv' como fallback para el mapa de deportaciones")
+  }
+
   if (exists("mod_deportaciones_mapa_server") && !is.null(deportaciones_data)) {
     tryCatch(
       mod_deportaciones_mapa_server("deportacionesmapa1", data = deportaciones_data),

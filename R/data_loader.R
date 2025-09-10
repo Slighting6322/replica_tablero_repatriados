@@ -116,30 +116,77 @@ agg_repatriados_from_xlsx <- function(path = "data/repatriados.xlsx", sheet = "R
                  "Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont",
                  "Virginia","Washington","West Virginia","Wisconsin","Wyoming")
 
-  # Normalizar nombres para comparación robusta
-  present_norm <- normalize_state_names(tb$Estados)
 
-  # Construir tabla final que contiene todos los estados en el orden estándar
-  final_tb <- data.frame(Estados = us_states, Repatriados = integer(length(us_states)), stringsAsFactors = FALSE)
-  # Rellenar con valores existentes cuando corresponda
-  for (i in seq_along(us_states)) {
-    s <- us_states[i]
-    s_norm <- normalize_state_names(s)
-    match_idx <- which(present_norm == s_norm)
-    if (length(match_idx) >= 1) {
-      final_tb$Repatriados[i] <- sum(tb$Repatriados[match_idx], na.rm = TRUE)
+
+
+    # Lista de estados de México (para mapas MX)
+    mx_states <- c("Aguascalientes","Baja California","Baja California Sur","Campeche","Chiapas","Chihuahua","Coahuila","Colima","Durango","Estado de México","Guanajuato","Guerrero","Hidalgo","Jalisco","Michoacán","Morelos","Nayarit","Nuevo León","Oaxaca","Puebla","Querétaro","Quintana Roo","San Luis Potosí","Sinaloa","Sonora","Tabasco","Tamaulipas","Tlaxcala","Veracruz","Yucatán","Zacatecas","Ciudad de México")
+  
+    # Normalizar nombres para comparación robusta
+    present_norm <- normalize_state_names(tb$Estados)
+    us_norm <- normalize_state_names(us_states)
+  
+    # Determinar si los datos parecen corresponder a EEUU o a México
+    matches_with_us <- sum(present_norm %in% us_norm)
+    prop_us <- if (length(present_norm) == 0) 0 else matches_with_us / length(present_norm)
+  
+    if (prop_us >= 0.4) {
+      # Tratar como datos de EEUU
+      final_tb <- data.frame(Estados = us_states, Repatriados = integer(length(us_states)), stringsAsFactors = FALSE)
+      for (i in seq_along(us_states)) {
+        s <- us_states[i]
+        s_norm <- normalize_state_names(s)
+        match_idx <- which(present_norm == s_norm)
+        if (length(match_idx) >= 1) {
+          final_tb$Repatriados[i] <- sum(tb$Repatriados[match_idx], na.rm = TRUE)
+        } else {
+          final_tb$Repatriados[i] <- 0L
+        }
+      }
+      missing_idx <- which(final_tb$Repatriados == 0)
+      if (length(missing_idx) > 0) {
+        missing <- final_tb$Estados[missing_idx]
+        message(sprintf("[agg_repatriados_from_xlsx] Estados de EEUU sin registros en '%s' (se usarán 0): %s", path, paste(missing, collapse = ", ")))
+      }
+      # Crear columna con versión en español (para mostrar) y dejar 'Estados' en inglés para hacer merges
+      final_tb$Estados_es <- sapply(final_tb$Estados, function(s) {
+        if (s %in% names(eng_to_esp)) return(eng_to_esp[[s]])
+        s_norm <- normalize_state_names(s)
+        keys_norm <- normalize_state_names(names(eng_to_esp))
+        idx <- which(keys_norm == s_norm)
+        if (length(idx) >= 1) return(eng_to_esp[[names(eng_to_esp)[idx[1]]]])
+        s_tc <- normalize_state_names(s)
+        if (length(s_tc) >= 1) s_tc[1] else s
+      }, USE.NAMES = FALSE)
+      final_tb
     } else {
-      final_tb$Repatriados[i] <- 0L
+      # Tratar como datos de México: construir tabla con los estados MX
+      final_tb <- data.frame(Estados = mx_states, Repatriaciones = integer(length(mx_states)), stringsAsFactors = FALSE)
+      # tb tiene columnas Estados, Repatriados (conteo detectado)
+      # Normalizar nombres y sumar
+      tb_norm <- data.frame(Estados = tb$Estados, Repatriados = tb$Repatriados, stringsAsFactors = FALSE)
+      tb_norm$norm <- normalize_state_names(tb_norm$Estados)
+      mx_norm <- normalize_state_names(mx_states)
+      for (i in seq_along(mx_states)) {
+        idx <- which(tb_norm$norm == mx_norm[i])
+        if (length(idx) >= 1) {
+          final_tb$Repatriaciones[i] <- sum(tb_norm$Repatriados[idx], na.rm = TRUE)
+        } else {
+          final_tb$Repatriaciones[i] <- 0L
+        }
+      }
+      # Añadir Estados_es (esp) y renombrar para compatibilidad con el módulo
+      final_tb$Estados_es <- final_tb$Estados
+      # Para compatibilidad con módulos que esperan 'Repatriados' como nombre de conteo, añadir esa columna
+      final_tb$Repatriados <- final_tb$Repatriaciones
+      # Mensaje con estados sin registros
+      missing_idx <- which(final_tb$Repatriaciones == 0)
+      if (length(missing_idx) > 0) {
+        missing <- final_tb$Estados[missing_idx]
+        message(sprintf("[agg_repatriados_from_xlsx] Estados de MX sin registros en '%s' (se usarán 0): %s", path, paste(missing, collapse = ", ")))
+      }
+      final_tb
     }
-  }
-
-  # Loguear en consola los estados que faltan en el dataset original (si hay)
-  missing_idx <- which(final_tb$Repatriados == 0)
-  if (length(missing_idx) > 0) {
-    missing <- final_tb$Estados[missing_idx]
-    message(sprintf("[agg_repatriados_from_xlsx] Estados de EEUU sin registros en '%s' (se usarán 0): %s", path, paste(missing, collapse = ", ")))
-  }
-
   # Mapear nombres a su versión en español cuando exista y asegurar mayúscula inicial
   eng_to_esp <- c(
     "Alabama" = "Alabama",

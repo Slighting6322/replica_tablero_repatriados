@@ -87,12 +87,36 @@ server <- function(input, output, session) {
   }
 
   # Montar mapa de repatriaciones (México) usando el mismo módulo si deseado
-  repatriaciones_data <- tryCatch({
-    read.csv("data/repatriaciones.csv", stringsAsFactors = FALSE)
-  }, error = function(e) {
-    message("No se pudo leer repatriaciones.csv: ", e$message)
-    NULL
-  })
+  # Montar mapa de repatriaciones (México)
+  repatriaciones_data <- NULL
+  try({
+    xlsx_path <- "data/repatriados.xlsx"
+    # Intentar agregar desde el xlsx usando la columna ESTADO DE DESTINO
+    if (file.exists(xlsx_path) && exists("agg_repatriados_from_xlsx", mode = "function")) {
+      dat_x_mx <- tryCatch(agg_repatriados_from_xlsx(path = xlsx_path, sheet = "Repatriados", state_col = "ESTADO DE DESTINO"), error = function(e) {
+        message("agg_repatriados_from_xlsx (MX) error: ", e$message)
+        NULL
+      })
+      if (!is.null(dat_x_mx) && is.data.frame(dat_x_mx) && nrow(dat_x_mx) > 0) {
+        # Renombrar columnas para compatibilidad con el módulo (Repatriaciones / Estados)
+        if ("Repatriados" %in% names(dat_x_mx)) names(dat_x_mx)[names(dat_x_mx) == "Repatriados"] <- "Repatriaciones"
+        repatriaciones_data <- dat_x_mx
+        message(sprintf("[server] usando datos agregados desde '%s' (%d estados) para el mapa de repatriaciones MX", xlsx_path, nrow(dat_x_mx)))
+      }
+    }
+  }, silent = TRUE)
+
+  # Fallback CSV si no obtuvimos datos desde xlsx
+  if (is.null(repatriaciones_data)) {
+    repatriaciones_data <- tryCatch({
+      read.csv("data/repatriaciones.csv", stringsAsFactors = FALSE)
+    }, error = function(e) {
+      message("No se pudo leer repatriaciones.csv: ", e$message)
+      NULL
+    })
+    if (!is.null(repatriaciones_data)) message("[server] usando 'data/repatriaciones.csv' como fallback para el mapa de repatriaciones MX")
+  }
+
   if (exists("mod_repatriaciones_mx_server") && !is.null(repatriaciones_data)) {
     tryCatch(
       mod_repatriaciones_mx_server("repatriacionesmapa1", data = repatriaciones_data),

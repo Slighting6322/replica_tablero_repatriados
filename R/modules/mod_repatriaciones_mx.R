@@ -39,6 +39,12 @@ mod_repatriaciones_mx_server <- function(id, data) {
           data$Estados <- as.character(data[[found_state]])
         }
       }
+      # Preparar nombre a mostrar en etiquetas: preferir 'Estados_es' si existe
+      if ("Estados_es" %in% names(data)) {
+        data$Estados_display <- data$Estados_es
+      } else {
+        data$Estados_display <- data$Estados
+      }
       # Si faltan coordenadas en el CSV, intentar añadir centroides aproximados para estados de México
       need_coords <- !("Latitud" %in% names(data) && "Longitud" %in% names(data)) || all(is.na(data$Latitud)) || all(is.na(data$Longitud))
       if (need_coords) {
@@ -92,13 +98,23 @@ mod_repatriaciones_mx_server <- function(id, data) {
           states_sf$Repatriaciones <- NA_real_
           mi <- match(states_sf$estado_norm, agg$estado_norm)
           states_sf$Repatriaciones[!is.na(mi)] <- agg$Repatriaciones[mi[!is.na(mi)]]
+          # Construir nombres de display para cada agg (usar data$Estados_display si posible)
+          agg$display <- sapply(agg$estado_norm, function(en) {
+            idx <- which(data$estado_norm == en)
+            if (length(idx) >= 1) return(unique(data$Estados_display[idx])[1])
+            # fallback title case
+            parts <- strsplit(en, " ")[[1]]
+            paste(sapply(parts, function(w) paste0(toupper(substring(w,1,1)), substring(w,2))), collapse = " ")
+          })
+          states_sf$display <- NA_character_
+          states_sf$display[!is.na(mi)] <- agg$display[mi[!is.na(mi)]]
           pal <- leaflet::colorNumeric("YlOrRd", domain = states_sf$Repatriaciones, na.color = "#EEEEEE")
           used_poly <- TRUE
           return(
             leaflet::leaflet(states_sf) %>%
               leaflet::addProviderTiles("CartoDB.Positron") %>%
               leaflet::addPolygons(fillColor = ~pal(Repatriaciones), fillOpacity = 0.8, color = "#444", weight = 1,
-                                   label = ~paste0(ifelse(is.na(Repatriaciones), paste0(as.character(states_sf[[nm_col]]), ": N/A"), paste0(as.character(states_sf[[nm_col]]), ": ", Repatriaciones)))) %>%
+                                   label = ~paste0(ifelse(is.na(Repatriaciones), paste0(display, ": N/A"), paste0(display, ": ", Repatriaciones)))) %>%
               leaflet::addLegend(pal = pal, values = ~Repatriaciones, title = "Repatriaciones", position = "bottomright") %>%
               leaflet::addControl(html = paste0("<div style='padding:6px; font-size:12px;'><b>Polígonos:</b> rnaturalearth</div>"), position = "topright")
           )
@@ -120,12 +136,21 @@ mod_repatriaciones_mx_server <- function(id, data) {
           states_sf$Repatriaciones <- NA_real_
           mi <- match(states_sf$estado_norm, agg$estado_norm)
           states_sf$Repatriaciones[!is.na(mi)] <- agg$Repatriaciones[mi[!is.na(mi)]]
+          # Construir display names usando data$Estados_display
+          agg$display <- sapply(agg$estado_norm, function(en) {
+            idx <- which(data$estado_norm == en)
+            if (length(idx) >= 1) return(unique(data$Estados_display[idx])[1])
+            parts <- strsplit(en, " ")[[1]]
+            paste(sapply(parts, function(w) paste0(toupper(substring(w,1,1)), substring(w,2))), collapse = " ")
+          })
+          states_sf$display <- NA_character_
+          states_sf$display[!is.na(mi)] <- agg$display[mi[!is.na(mi)]]
           pal <- leaflet::colorNumeric("YlOrRd", domain = states_sf$Repatriaciones, na.color = "#EEEEEE")
           return(
             leaflet::leaflet(states_sf) %>%
               leaflet::addProviderTiles("CartoDB.Positron") %>%
               leaflet::addPolygons(fillColor = ~pal(Repatriaciones), fillOpacity = 0.8, color = "#444", weight = 1,
-                                   label = ~paste0(ifelse(is.na(Repatriaciones), paste0(as.character(states_sf$region), ": N/A"), paste0(as.character(states_sf$region), ": ", Repatriaciones)))) %>%
+                                   label = ~paste0(ifelse(is.na(Repatriaciones), paste0(display, ": N/A"), paste0(display, ": ", Repatriaciones)))) %>%
               leaflet::addLegend(pal = pal, values = ~Repatriaciones, title = "Repatriaciones", position = "bottomright") %>%
               leaflet::addControl(html = paste0("<div style='padding:6px; font-size:12px;'><b>Polígonos:</b> maps</div>"), position = "topright")
           )
@@ -144,9 +169,10 @@ mod_repatriaciones_mx_server <- function(id, data) {
             leaflet::addControl(html = msg_html, position = "topright")
         )
       }
+      data_coords$Estados_display <- if ("Estados_display" %in% names(data_coords)) data_coords$Estados_display else data_coords$Estados
       leaflet::leaflet(data_coords) %>%
         leaflet::addProviderTiles("CartoDB.Positron") %>%
-        leaflet::addCircleMarkers(lng = ~Longitud, lat = ~Latitud, label = ~paste0(Estados, ": ", ifelse(is.na(Repatriaciones), "N/A", Repatriaciones)))
+        leaflet::addCircleMarkers(lng = ~Longitud, lat = ~Latitud, label = ~paste0(Estados_display, ": ", ifelse(is.na(Repatriaciones), "N/A", Repatriaciones)))
     })
   })
 }

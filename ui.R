@@ -15,7 +15,7 @@ ui <- fluidPage(class = "app-root-full",
     # Shiny dependencies are added by fluidPage; include fonts and CSS
     tags$link(href = "https://fonts.googleapis.com/css2?family=Inter&family=Montserrat&family=Noto+Sans&display=swap", rel = "stylesheet"),
   # Forzar recarga del CSS cuando se hacen cambios: se añade query string de versión
-  tags$link(rel = "stylesheet", href = "css/style.css?v=3"),
+  tags$link(rel = "stylesheet", href = "css/style.css?v=4"),
     tags$title("Tablero")
   ),
 
@@ -71,6 +71,9 @@ ui <- fluidPage(class = "app-root-full",
                              "Fecha de corte: ",
                              if (exists("mod_fecha_ui")) mod_fecha_ui("fecha_origen", inline = TRUE) else textOutput("fecha_corte_texto_origen", inline = TRUE)
                            ),
+                           if (exists("mod_deportaciones_mapa_ui")) mod_deportaciones_mapa_ui("deportacionesmapa1") else div(class = "mapa-deportaciones-fallback", "(Mapa de deportaciones no disponible)"),
+                          # Mapa secundario para repatriaciones (usar el mismo módulo si es posible)
+                           if (exists("mod_repatriaciones_mx_ui")) mod_repatriaciones_mx_ui("repatriacionesmapa1") else if (exists("mod_deportaciones_mapa_ui")) mod_deportaciones_mapa_ui("repatriacionesmapa1") else div(class = "mapa-repatriaciones-fallback", "(Mapa de repatriaciones no disponible)"),
                            if (exists("mod_origen_ui")) mod_origen_ui("origen1") else div(id = "origen-module-placeholder")
               )
 
@@ -80,8 +83,8 @@ ui <- fluidPage(class = "app-root-full",
   if (exists("mod_footer_ui")) mod_footer_ui("footer1") else HTML("<footer class='footer-gob'></footer>")
   ),
 
-  # Router / section manager script (migrated from index.html; without DOM-based fecha sync)
+  # Router / section manager script (enhanced to notify Shiny and trigger resize/invalidate)
   tags$script(HTML(
-    "(function () {\n      function showSection(target) {\n        document.querySelectorAll('.seccion').forEach(function(s) {\n          s.style.display = (s.dataset.seccion === target) ? '' : 'none';\n        });\n        document.querySelectorAll('.btn-seccion').forEach(function(b) {\n          b.setAttribute('aria-pressed', b.dataset.target === target ? 'true' : 'false');\n        });\n        history.replaceState(null, '', '#' + target);\n      }\n\n      document.addEventListener('DOMContentLoaded', function () {\n        var headerNav = document.querySelector('.header-nav');\n        if (headerNav) {\n          headerNav.querySelectorAll('a').forEach(function(a) {\n            var href = a.getAttribute('href') || '';\n            if (href.startsWith('#')) {\n              a.addEventListener('click', function (ev) { ev.preventDefault(); showSection(href.replace('#','')); });\n            } else if (href.endsWith('index.html') || href === './' || href === '/') {\n              a.setAttribute('href', '#home');\n              a.addEventListener('click', function (ev) { ev.preventDefault(); showSection('home'); });\n            }\n          });\n        }\n\n        var hash = location.hash.replace('#', '');\n        if (hash === 'origen') showSection('origen'); else showSection('home');\n      });\n    })();"
+    "(function () {\n      function showSection(target) {\n        document.querySelectorAll('.seccion').forEach(function(s) {\n          s.style.display = (s.dataset.seccion === target) ? '' : 'none';\n        });\n        document.querySelectorAll('.btn-seccion').forEach(function(b) {\n          b.setAttribute('aria-pressed', b.dataset.target === target ? 'true' : 'false');\n        });\n        history.replaceState(null, '', '#' + target);\n        // Trigger a resize so Leaflet maps refresh when shown\n        setTimeout(function(){ window.dispatchEvent(new Event('resize')); }, 150);\n        // Also attempt to call invalidateSize on any Leaflet containers (some wrappers expose the map object differently)\n        setTimeout(function(){\n          try {\n            document.querySelectorAll('.leaflet-container').forEach(function(el){\n              try { if (el._leaflet_map && typeof el._leaflet_map.invalidateSize === 'function') el._leaflet_map.invalidateSize(); } catch(e) {}\n              try { if (el._leaflet && typeof el._leaflet.invalidateSize === 'function') el._leaflet.invalidateSize(); } catch(e) {}\n            });\n          } catch(e) {}\n        }, 250);\n        if (window.Shiny && Shiny.setInputValue) { Shiny.setInputValue('section_shown', target, {priority: 'event'}); }\n      }\n\n      document.addEventListener('DOMContentLoaded', function () {\n        var headerNav = document.querySelector('.header-nav');\n        if (headerNav) {\n          headerNav.querySelectorAll('a').forEach(function(a) {\n            var href = a.getAttribute('href') || '';\n            if (href.startsWith('#')) {\n              a.addEventListener('click', function (ev) { ev.preventDefault(); showSection(href.replace('#','')); });\n            } else if (href.endsWith('index.html') || href === './' || href === '/') {\n              a.setAttribute('href', '#home');\n              a.addEventListener('click', function (ev) { ev.preventDefault(); showSection('home'); });\n            }\n          });\n        }\n\n        var hash = location.hash.replace('#', '');\n        if (hash === 'origen') showSection('origen'); else showSection('home');\n      });\n    })();"
   ))
 )

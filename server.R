@@ -41,6 +41,44 @@ server <- function(input, output, session) {
       error = function(e) message("mod_centros_mapa_server error: ", e$message)
     )
   }
+    # Evitar que Shiny suspenda el render de los mapas aunque las secciones estén ocultas
+    tryCatch({
+      outputOptions(output, "centrosmapa1-mapa_centros", suspendWhenHidden = FALSE)
+    }, error = function(e) {})
+
+  # Montar el módulo del mapa de deportaciones (EEUU) en la sección 'origen'
+  deportaciones_data <- tryCatch({
+    read.csv("data/deportaciones.csv", stringsAsFactors = FALSE)
+  }, error = function(e) {
+    message("No se pudo leer deportaciones.csv: ", e$message)
+    NULL
+  })
+  if (exists("mod_deportaciones_mapa_server") && !is.null(deportaciones_data)) {
+    tryCatch(
+      mod_deportaciones_mapa_server("deportacionesmapa1", data = deportaciones_data),
+      error = function(e) message("mod_deportaciones_mapa_server error: ", e$message)
+    )
+    tryCatch({
+      outputOptions(output, "deportacionesmapa1-mapa_deportaciones", suspendWhenHidden = FALSE)
+    }, error = function(e) {})
+  }
+
+  # Montar mapa de repatriaciones (México) usando el mismo módulo si deseado
+  repatriaciones_data <- tryCatch({
+    read.csv("data/repatriaciones.csv", stringsAsFactors = FALSE)
+  }, error = function(e) {
+    message("No se pudo leer repatriaciones.csv: ", e$message)
+    NULL
+  })
+  if (exists("mod_repatriaciones_mx_server") && !is.null(repatriaciones_data)) {
+    tryCatch(
+      mod_repatriaciones_mx_server("repatriacionesmapa1", data = repatriaciones_data),
+      error = function(e) message("mod_repatriaciones_mx_server error: ", e$message)
+    )
+    tryCatch({
+      outputOptions(output, "repatriacionesmapa1-mapa_repatriaciones", suspendWhenHidden = FALSE)
+    }, error = function(e) {})
+  }
 
   # --- Montar servidores de los filtros del mapa ---
   # Dropdown entidad

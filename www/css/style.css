@@ -249,7 +249,7 @@ html {
   align-items: center;
   justify-content: space-between;
   padding: 0 20px;
-  z-index: 1000;
+  z-index: 3000; /* aseguramos que el header quede por encima de elementos interactivos (leaflet, popups) */
 }
 /* (Se eliminó duplicado que usaba 100vw para evitar gap lateral y saltos) */
 
@@ -397,6 +397,37 @@ body, .page { margin:0; }
 
 /* Asegura que dentro del layout flex .page el footer se estire al 100% */
 .page > .footer-gob { align-self: stretch; }
+
+/* Subtítulo para el módulo de deportaciones */
+.deportaciones-subtitulo {
+  text-align: center;
+  margin-top: 2.5rem;
+  font-weight: 800; /* negrita más fuerte */
+  font-size: 2.6rem; /* tamaño aumentado */
+  color: #243a2b;
+}
+
+/* =========================
+   LEAFLET STACKING FIX
+   Asegura que los elementos del mapa (popups, tooltips, controles, marcadores)
+   no se muestren por encima del header fijo al hacer scroll.
+   Se usan valores menores que el z-index del header y !important para
+   sobreescribir estilos inline que Leaflet pueda aplicar.
+   ========================= */
+.leaflet-container .leaflet-marker-icon,
+.leaflet-container .leaflet-marker-shadow,
+.leaflet-container .leaflet-control,
+.leaflet-container .leaflet-popup,
+.leaflet-container .leaflet-tooltip,
+.leaflet-pane .leaflet-popup-pane,
+.leaflet-pane .leaflet-shadow-pane,
+.leaflet-pane .leaflet-tooltip-pane {
+  z-index: 2000 !important;
+}
+
+/* Si hay controles específicos con z-index mayor, forzarlos también */
+.leaflet-control-container { z-index: 2000 !important; }
+
 
 /* Quita padding del wrapper que inyecta fluidPage (div.container-fluid de nivel superior) */
 body > div.container-fluid { padding-left:0 !important; padding-right:0 !important; }

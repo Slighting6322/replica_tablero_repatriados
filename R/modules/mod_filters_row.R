@@ -36,7 +36,7 @@ if (!exists("mod_filters_number_ui", mode = "function")) {
     ns <- shiny::NS(id)
     shiny::div(class = "filter-number",
       if (!is.null(label)) shiny::div(class = "filter-label", label),
-      shiny::numericInput(ns("num"), label = NULL, value = NA, min = 0, width = "100%")
+  shiny::numericInput(ns("num"), label = NULL, value = NULL, min = 0, width = "100%")
     )
   }
 }
@@ -78,7 +78,7 @@ mod_filters_row_ui <- function(id) {
   ui2 <- if (!is.null(dd_ui_fn)) dd_ui_fn(ns("d2"), label = "Municipio:", choices = NULL) else
     shiny::div(class = "filter-dropdown", shiny::div(class = "filter-label", "Municipio:"), shiny::selectInput(ns("d2_select"), NULL, choices = list("Seleccionar..."), width = "100%"))
   ui3 <- if (!is.null(num_ui_fn)) num_ui_fn(ns("n1"), label = "Capacidad:") else
-    shiny::div(class = "filter-number", shiny::div(class = "filter-label", "Capacidad:"), shiny::numericInput(ns("n1_num"), NULL, value = NA, min = 0, width = "100%"))
+  shiny::div(class = "filter-number", shiny::div(class = "filter-label", "Capacidad:"), shiny::numericInput(ns("n1_num"), NULL, value = NULL, min = 0, width = "100%"))
   ui4 <- if (!is.null(btns_ui_fn)) btns_ui_fn(ns("btns")) else
     shiny::div(class = "filter-buttons", shiny::actionButton(ns("buscar"), "Buscar"), shiny::actionButton(ns("refrescar"), "Refrescar"))
 

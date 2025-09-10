@@ -122,6 +122,60 @@ agg_repatriados_from_xlsx <- function(path = "data/repatriados.xlsx", sheet = "R
     # Lista de estados de México (para mapas MX)
     mx_states <- c("Aguascalientes","Baja California","Baja California Sur","Campeche","Chiapas","Chihuahua","Coahuila","Colima","Durango","Estado de México","Guanajuato","Guerrero","Hidalgo","Jalisco","Michoacán","Morelos","Nayarit","Nuevo León","Oaxaca","Puebla","Querétaro","Quintana Roo","San Luis Potosí","Sinaloa","Sonora","Tabasco","Tamaulipas","Tlaxcala","Veracruz","Yucatán","Zacatecas","Ciudad de México")
   
+  # Mapa inglés -> español para nombres de estados de EEUU (usado para mostrar en tooltips)
+  eng_to_esp <- c(
+    "Alabama" = "Alabama",
+    "Alaska" = "Alaska",
+    "Arizona" = "Arizona",
+    "Arkansas" = "Arkansas",
+    "California" = "California",
+    "Colorado" = "Colorado",
+    "Connecticut" = "Connecticut",
+    "Delaware" = "Delaware",
+    "Florida" = "Florida",
+    "Georgia" = "Georgia",
+    "Hawaii" = "Hawái",
+    "Idaho" = "Idaho",
+    "Illinois" = "Illinois",
+    "Indiana" = "Indiana",
+    "Iowa" = "Iowa",
+    "Kansas" = "Kansas",
+    "Kentucky" = "Kentucky",
+    "Louisiana" = "Luisiana",
+    "Maine" = "Maine",
+    "Maryland" = "Maryland",
+    "Massachusetts" = "Massachusetts",
+    "Michigan" = "Michigan",
+    "Minnesota" = "Minnesota",
+    "Mississippi" = "Mississippi",
+    "Missouri" = "Misuri",
+    "Montana" = "Montana",
+    "Nebraska" = "Nebraska",
+    "Nevada" = "Nevada",
+    "New Hampshire" = "Nuevo Hampshire",
+    "New Jersey" = "Nueva Jersey",
+    "New Mexico" = "Nuevo México",
+    "New York" = "Nueva York",
+    "North Carolina" = "Carolina del Norte",
+    "North Dakota" = "Dakota del Norte",
+    "Ohio" = "Ohio",
+    "Oklahoma" = "Oklahoma",
+    "Oregon" = "Oregón",
+    "Pennsylvania" = "Pensilvania",
+    "Rhode Island" = "Rhode Island",
+    "South Carolina" = "Carolina del Sur",
+    "South Dakota" = "Dakota del Sur",
+    "Tennessee" = "Tennessee",
+    "Texas" = "Texas",
+    "Utah" = "Utah",
+    "Vermont" = "Vermont",
+    "Virginia" = "Virginia",
+    "Washington" = "Washington",
+    "West Virginia" = "Virginia Occidental",
+    "Wisconsin" = "Wisconsin",
+    "Wyoming" = "Wyoming"
+  )
+
     # Normalizar nombres para comparación robusta
     present_norm <- normalize_state_names(tb$Estados)
     us_norm <- normalize_state_names(us_states)
@@ -187,69 +241,17 @@ agg_repatriados_from_xlsx <- function(path = "data/repatriados.xlsx", sheet = "R
       }
       final_tb
     }
-  # Mapear nombres a su versión en español cuando exista y asegurar mayúscula inicial
-  eng_to_esp <- c(
-    "Alabama" = "Alabama",
-    "Alaska" = "Alaska",
-    "Arizona" = "Arizona",
-    "Arkansas" = "Arkansas",
-    "California" = "California",
-    "Colorado" = "Colorado",
-    "Connecticut" = "Connecticut",
-    "Delaware" = "Delaware",
-    "Florida" = "Florida",
-    "Georgia" = "Georgia",
-    "Hawaii" = "Hawái",
-    "Idaho" = "Idaho",
-    "Illinois" = "Illinois",
-    "Indiana" = "Indiana",
-    "Iowa" = "Iowa",
-    "Kansas" = "Kansas",
-    "Kentucky" = "Kentucky",
-    "Louisiana" = "Luisiana",
-    "Maine" = "Maine",
-    "Maryland" = "Maryland",
-    "Massachusetts" = "Massachusetts",
-    "Michigan" = "Michigan",
-    "Minnesota" = "Minnesota",
-    "Mississippi" = "Mississippi",
-    "Missouri" = "Misuri",
-    "Montana" = "Montana",
-    "Nebraska" = "Nebraska",
-    "Nevada" = "Nevada",
-    "New Hampshire" = "Nuevo Hampshire",
-    "New Jersey" = "Nueva Jersey",
-    "New Mexico" = "Nuevo México",
-    "New York" = "Nueva York",
-    "North Carolina" = "Carolina del Norte",
-    "North Dakota" = "Dakota del Norte",
-    "Ohio" = "Ohio",
-    "Oklahoma" = "Oklahoma",
-    "Oregon" = "Oregón",
-    "Pennsylvania" = "Pensilvania",
-    "Rhode Island" = "Rhode Island",
-    "South Carolina" = "Carolina del Sur",
-    "South Dakota" = "Dakota del Sur",
-    "Tennessee" = "Tennessee",
-    "Texas" = "Texas",
-    "Utah" = "Utah",
-    "Vermont" = "Vermont",
-    "Virginia" = "Virginia",
-    "Washington" = "Washington",
-    "West Virginia" = "Virginia Occidental",
-    "Wisconsin" = "Wisconsin",
-    "Wyoming" = "Wyoming"
-  )
-
   # Crear columna con versión en español (para mostrar) y dejar 'Estados' en inglés para hacer merges
   final_tb$Estados_es <- sapply(final_tb$Estados, function(s) {
     # intentar coincidencia directa con la lista inglesa
-    if (s %in% names(eng_to_esp)) return(eng_to_esp[[s]])
+    if (exists("eng_to_esp") && s %in% names(eng_to_esp)) return(eng_to_esp[[s]])
     # si no, intentar normalizar y buscar por versión normalizada
-    s_norm <- normalize_state_names(s)
-    keys_norm <- normalize_state_names(names(eng_to_esp))
-    idx <- which(keys_norm == s_norm)
-    if (length(idx) >= 1) return(eng_to_esp[[names(eng_to_esp)[idx[1]]]])
+    if (exists("eng_to_esp")) {
+      s_norm <- normalize_state_names(s)
+      keys_norm <- normalize_state_names(names(eng_to_esp))
+      idx <- which(keys_norm == s_norm)
+      if (length(idx) >= 1) return(eng_to_esp[[names(eng_to_esp)[idx[1]]]])
+    }
     # fallback: Title Case generico
     s_tc <- normalize_state_names(s)
     if (length(s_tc) >= 1) s_tc[1] else s

@@ -102,6 +102,15 @@ server <- function(input, output, session) {
         if ("Repatriados" %in% names(dat_x_mx)) names(dat_x_mx)[names(dat_x_mx) == "Repatriados"] <- "Repatriaciones"
         repatriaciones_data <- dat_x_mx
         message(sprintf("[server] usando datos agregados desde '%s' (%d estados) para el mapa de repatriaciones MX", xlsx_path, nrow(dat_x_mx)))
+        # Imprimir en consola los estados de México sin registros (Repatriaciones == 0)
+        cnt_col <- if ("Repatriaciones" %in% names(dat_x_mx)) "Repatriaciones" else if ("Repatriados" %in% names(dat_x_mx)) "Repatriados" else NULL
+        if (!is.null(cnt_col)) {
+          zero_idx <- which(as.integer(dat_x_mx[[cnt_col]]) == 0)
+          if (length(zero_idx) > 0) {
+            missing_mx <- dat_x_mx$Estados[zero_idx]
+            message(sprintf("[server] Estados MX sin registros en '%s' (se usarán 0): %s", xlsx_path, paste(missing_mx, collapse = ", ")))
+          }
+        }
       }
     }
   }, silent = TRUE)

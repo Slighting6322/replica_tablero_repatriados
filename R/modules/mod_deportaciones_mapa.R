@@ -65,7 +65,12 @@ mod_deportaciones_mapa_server <- function(id, data = NULL, xlsx_path = "data/rep
       x2
     }
   # Intentar unir data con coordenadas de EEUU (merge por nombres en inglés)
-  data_map_us <- merge(data, estados_coords, by = "Estados", all.x = TRUE)
+  # Evitar duplicados al unir con centroides: usar solo columnas necesarias y renombrar si hace falta
+  cent_us <- estados_coords[, c("Estados", "Latitud", "Longitud"), drop = FALSE]
+  overlap_us <- intersect(names(data), names(cent_us))
+  overlap_us <- setdiff(overlap_us, "Estados")
+  if (length(overlap_us) > 0) cent_us[overlap_us] <- NULL
+  data_map_us <- merge(data, cent_us, by = "Estados", all.x = TRUE)
     # Tabla de centroides aproximados para estados de México (uso como fallback si los datos son mexicanos)
       mexico_coords <- data.frame(
       Estados = c("Aguascalientes","Baja California","Baja California Sur","Campeche","Chiapas","Chihuahua","Coahuila","Colima","Durango","Estado de México","Guanajuato","Guerrero","Hidalgo","Jalisco","Michoacán","Morelos","Nayarit","Nuevo León","Oaxaca","Puebla","Querétaro","Quintana Roo","San Luis Potosí","Sinaloa","Sonora","Tabasco","Tamaulipas","Tlaxcala","Veracruz","Yucatán","Zacatecas","Ciudad de México"),
@@ -73,7 +78,11 @@ mod_deportaciones_mapa_server <- function(id, data = NULL, xlsx_path = "data/rep
       Longitud = c(-102.2826,-115.5766,-110.3128,-90.5349,-92.6818,-106.0691,-101.7068,-103.6770,-104.6532,-99.7233,-101.2574,-99.4975,-98.7590,-103.3496,-101.7068,-99.1332,-104.8455,-100.3108,-96.7266,-98.2063,-100.3899,-87.0739,-101.6645,-110.9540,-93.0640,-97.8694,-98.2062,-97.7475,-96.1420,-102.5728,-102.5832,-99.1332)
     )
   # Intentar unir data con centroides de México
-  data_map_mx <- merge(data, mexico_coords, by = "Estados", all.x = TRUE)
+  cent_mx <- mexico_coords[, c("Estados", "Latitud", "Longitud"), drop = FALSE]
+  overlap_mx <- intersect(names(data), names(cent_mx))
+  overlap_mx <- setdiff(overlap_mx, "Estados")
+  if (length(overlap_mx) > 0) cent_mx[overlap_mx] <- NULL
+  data_map_mx <- merge(data, cent_mx, by = "Estados", all.x = TRUE)
   # Contar coincidencias por latitud encontradas (normalizando nombres para comparar)
   # Normalizar nombres en ambos lados para matching
   if (exists("normalize_state_names", where = globalenv()) || exists("normalize_state_names", where = asNamespace("R"))) {
@@ -151,6 +160,10 @@ mod_deportaciones_mapa_server <- function(id, data = NULL, xlsx_path = "data/rep
   if (is_us && requireNamespace("tigris", quietly = TRUE) && requireNamespace("sf", quietly = TRUE)) {
         tryCatch({
           states_sf <- tigris::states(cb = TRUE)
+          # forzar CRS a WGS84 para evitar warnings de datum inconsistente
+          if (inherits(states_sf, "sf")) {
+            try({ states_sf <- sf::st_transform(states_sf, crs = 4326) }, silent = TRUE)
+          }
           name_col <- if ("NAME" %in% names(states_sf)) "NAME" else names(states_sf)[1]
           states_sf$region <- tolower(states_sf[[name_col]])
           # Normalizar y deduplicar claves antes de merge para evitar mismatch de filas
@@ -191,6 +204,8 @@ mod_deportaciones_mapa_server <- function(id, data = NULL, xlsx_path = "data/rep
         tryCatch({
           m <- maps::map("state", fill = TRUE, plot = FALSE)
           states_sf <- sf::st_as_sf(m)
+          # forzar CRS WGS84 por seguridad
+          try({ states_sf <- sf::st_transform(states_sf, crs = 4326) }, silent = TRUE)
           region_names <- sapply(strsplit(m$names, ":"), function(x) x[1])
           region_names <- tolower(region_names)
           states_sf$region <- region_names
@@ -232,6 +247,7 @@ mod_deportaciones_mapa_server <- function(id, data = NULL, xlsx_path = "data/rep
           m <- maps::map("state", fill = TRUE, plot = FALSE)
           # Convertir a sf
           states_sf <- sf::st_as_sf(m)
+          try({ states_sf <- sf::st_transform(states_sf, crs = 4326) }, silent = TRUE)
           # Normalizar nombres de región (map$names contiene strings como 'new york:main')
           region_names <- sapply(strsplit(m$names, ":"), function(x) x[1])
           region_names <- tolower(region_names)

@@ -58,13 +58,26 @@ mod_repatriaciones_mx_server <- function(id, data) {
   if (!"Estados" %in% names(data)) data$Estados <- NA
   data$.__estado_norm <- norm(data$Estados)
         mexico_centroids$.__estado_norm <- norm(mexico_centroids$Estados)
-        data <- merge(data, mexico_centroids[, c(".__estado_norm", "Latitud", "Longitud")], by.x = ".__estado_norm", by.y = ".__estado_norm", all.x = TRUE, sort = FALSE)
-        # Resolver columnas Latitud/Longitud si vienen duplicadas tras merge
-        if ("Latitud.x" %in% names(data)) {
-          data$Latitud <- ifelse(is.na(data$Latitud.x), data$Latitud.y, data$Latitud.x)
-          data$Longitud <- ifelse(is.na(data$Longitud.x), data$Longitud.y, data$Longitud.x)
-          data$Latitud.x <- data$Latitud.y <- data$Longitud.x <- data$Longitud.y <- NULL
-        }
+  # Preparar sub-DF de centroides, renombrar lat/long para evitar colisiones y luego hacer coalesce
+  cent_sub <- mexico_centroids[, c(".__estado_norm", "Latitud", "Longitud"), drop = FALSE]
+  names(cent_sub)[names(cent_sub) == "Latitud"] <- "Lat_centro"
+  names(cent_sub)[names(cent_sub) == "Longitud"] <- "Lon_centro"
+  # eliminar cualquier otra columna en cent_sub que colisione con 'data' (excepto la llave)
+  overlap <- intersect(names(data), names(cent_sub))
+  overlap <- setdiff(overlap, ".__estado_norm")
+  if (length(overlap) > 0) cent_sub[overlap] <- NULL
+  # Usar sufijos en el merge para evitar duplicación de nombres; luego limpiar columnas '.cent'
+  data <- merge(data, cent_sub, by.x = ".__estado_norm", by.y = ".__estado_norm", all.x = TRUE, sort = FALSE, suffixes = c("", ".cent"))
+  # Coalesce lat/long: prefer columnas originales si existen, sino usar las del centroide
+        if (!"Latitud" %in% names(data)) data$Latitud <- NA_real_
+        if (!"Longitud" %in% names(data)) data$Longitud <- NA_real_
+        if ("Lat_centro" %in% names(data)) data$Latitud <- ifelse(is.na(data$Latitud), data$Lat_centro, data$Latitud)
+        if ("Lon_centro" %in% names(data)) data$Longitud <- ifelse(is.na(data$Longitud), data$Lon_centro, data$Longitud)
+        # eliminar columnas temporales y cualquier columna con sufijo .cent
+        rm_cols <- grep("\\.cent$", names(data), value = TRUE)
+        # también eliminar las columnas Lat_centro/Lon_centro si existen (ya fueron coalesced)
+        rm_cols <- unique(c(rm_cols, intersect(names(data), c("Lat_centro", "Lon_centro"))))
+        if (length(rm_cols) > 0) data[rm_cols] <- NULL
         data$.__estado_norm <- NULL
       }
 
@@ -98,6 +111,9 @@ mod_repatriaciones_mx_server <- function(id, data) {
           states_sf$Repatriaciones <- NA_real_
           mi <- match(states_sf$estado_norm, agg$estado_norm)
           states_sf$Repatriaciones[!is.na(mi)] <- agg$Repatriaciones[mi[!is.na(mi)]]
+          # Asegurar que los estados que no aparecen en 'agg' tengan valor 0 en lugar de NA
+          nas <- which(is.na(states_sf$Repatriaciones))
+          if (length(nas) > 0) states_sf$Repatriaciones[nas] <- 0L
           # Construir nombres de display para cada agg (usar data$Estados_display si posible)
           agg$display <- sapply(agg$estado_norm, function(en) {
             idx <- which(data$estado_norm == en)
@@ -108,6 +124,16 @@ mod_repatriaciones_mx_server <- function(id, data) {
           })
           states_sf$display <- NA_character_
           states_sf$display[!is.na(mi)] <- agg$display[mi[!is.na(mi)]]
+          # Para estados sin 'display' asignado, usar el nombre del polígono en Title Case
+          missing_disp <- which(is.na(states_sf$display) | states_sf$display == "")
+          if (length(missing_disp) > 0) {
+            choice_names <- as.character(states_sf[[nm_col]])
+            title_case <- sapply(choice_names, function(x) {
+              parts <- strsplit(tolower(iconv(as.character(x), from = "UTF-8", to = "ASCII//TRANSLIT")), "[[:space:]]+")[[1]]
+              paste(sapply(parts, function(w) paste0(toupper(substring(w,1,1)), substring(w,2))), collapse = " ")
+            })
+            states_sf$display[missing_disp] <- title_case[missing_disp]
+          }
           pal <- leaflet::colorNumeric("YlOrRd", domain = states_sf$Repatriaciones, na.color = "#EEEEEE")
           used_poly <- TRUE
           return(
@@ -136,6 +162,9 @@ mod_repatriaciones_mx_server <- function(id, data) {
           states_sf$Repatriaciones <- NA_real_
           mi <- match(states_sf$estado_norm, agg$estado_norm)
           states_sf$Repatriaciones[!is.na(mi)] <- agg$Repatriaciones[mi[!is.na(mi)]]
+            # Reemplazar NA por 0 para los estados sin registros
+            nas2 <- which(is.na(states_sf$Repatriaciones))
+            if (length(nas2) > 0) states_sf$Repatriaciones[nas2] <- 0L
           # Construir display names usando data$Estados_display
           agg$display <- sapply(agg$estado_norm, function(en) {
             idx <- which(data$estado_norm == en)
@@ -145,6 +174,15 @@ mod_repatriaciones_mx_server <- function(id, data) {
           })
           states_sf$display <- NA_character_
           states_sf$display[!is.na(mi)] <- agg$display[mi[!is.na(mi)]]
+            missing_disp2 <- which(is.na(states_sf$display) | states_sf$display == "")
+            if (length(missing_disp2) > 0) {
+              choice_names <- as.character(states_sf[["region"]])
+              title_case <- sapply(choice_names, function(x) {
+                parts <- strsplit(tolower(iconv(as.character(x), from = "UTF-8", to = "ASCII//TRANSLIT")), "[[:space:]]+")[[1]]
+                paste(sapply(parts, function(w) paste0(toupper(substring(w,1,1)), substring(w,2))), collapse = " ")
+              })
+              states_sf$display[missing_disp2] <- title_case[missing_disp2]
+            }
           pal <- leaflet::colorNumeric("YlOrRd", domain = states_sf$Repatriaciones, na.color = "#EEEEEE")
           return(
             leaflet::leaflet(states_sf) %>%

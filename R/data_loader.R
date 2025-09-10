@@ -82,12 +82,14 @@ agg_repatriados_from_xlsx <- function(path = "data/repatriados.xlsx", sheet = "R
   if (!file.exists(path)) stop("xlsx file not found: ", path)
   if (!requireNamespace("readxl", quietly = TRUE)) stop("please install readxl to read xlsx files")
 
-  df <- tryCatch(readxl::read_excel(path, sheet = sheet), error = function(e) stop("error reading xlsx: ", e$message))
+  # Leer todo como texto para evitar warnings por parsing de tipos (fechas, etc.)
+  df <- tryCatch(readxl::read_excel(path, sheet = sheet, col_types = "text"), error = function(e) stop("error reading xlsx: ", e$message))
   if (nrow(df) == 0) return(data.frame(Estados = character(0), Repatriados = integer(0), stringsAsFactors = FALSE))
 
-  # No remover duplicados, ya que cada fila es una repatriación
-  # df_unique <- df[!duplicated(df), , drop = FALSE]
-  col_candidates <- names(df)
+  # Eliminar filas exactamente duplicadas para evitar contar la misma repatriación más de una vez
+  df_unique <- df[!duplicated(df), , drop = FALSE]
+
+  col_candidates <- names(df_unique)
   chosen <- NULL
   if (!is.null(state_col) && state_col %in% col_candidates) {
     chosen <- state_col
@@ -97,14 +99,116 @@ agg_repatriados_from_xlsx <- function(path = "data/repatriados.xlsx", sheet = "R
   }
   if (is.null(chosen)) stop("state column not found in xlsx (looked for '", state_col, "' or 'estado' in column names)")
 
-  states_vec <- as.character(df[[chosen]])
+  states_vec <- as.character(df_unique[[chosen]])
   states_vec <- trimws(states_vec)
   states_vec[states_vec == "" | is.na(states_vec)] <- "(sin_estado)"
 
   tb <- as.data.frame(table(states_vec), stringsAsFactors = FALSE)
   names(tb) <- c("Estados", "Repatriados")
   tb$Repatriados <- as.integer(tb$Repatriados)
-  tb
+
+  # Lista completa de estados de EEUU
+  us_states <- c("Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware",
+                 "Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky",
+                 "Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota","Mississippi",
+                 "Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico",
+                 "New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania",
+                 "Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont",
+                 "Virginia","Washington","West Virginia","Wisconsin","Wyoming")
+
+  # Normalizar nombres para comparación robusta
+  present_norm <- normalize_state_names(tb$Estados)
+
+  # Construir tabla final que contiene todos los estados en el orden estándar
+  final_tb <- data.frame(Estados = us_states, Repatriados = integer(length(us_states)), stringsAsFactors = FALSE)
+  # Rellenar con valores existentes cuando corresponda
+  for (i in seq_along(us_states)) {
+    s <- us_states[i]
+    s_norm <- normalize_state_names(s)
+    match_idx <- which(present_norm == s_norm)
+    if (length(match_idx) >= 1) {
+      final_tb$Repatriados[i] <- sum(tb$Repatriados[match_idx], na.rm = TRUE)
+    } else {
+      final_tb$Repatriados[i] <- 0L
+    }
+  }
+
+  # Loguear en consola los estados que faltan en el dataset original (si hay)
+  missing_idx <- which(final_tb$Repatriados == 0)
+  if (length(missing_idx) > 0) {
+    missing <- final_tb$Estados[missing_idx]
+    message(sprintf("[agg_repatriados_from_xlsx] Estados de EEUU sin registros en '%s' (se usarán 0): %s", path, paste(missing, collapse = ", ")))
+  }
+
+  # Mapear nombres a su versión en español cuando exista y asegurar mayúscula inicial
+  eng_to_esp <- c(
+    "Alabama" = "Alabama",
+    "Alaska" = "Alaska",
+    "Arizona" = "Arizona",
+    "Arkansas" = "Arkansas",
+    "California" = "California",
+    "Colorado" = "Colorado",
+    "Connecticut" = "Connecticut",
+    "Delaware" = "Delaware",
+    "Florida" = "Florida",
+    "Georgia" = "Georgia",
+    "Hawaii" = "Hawái",
+    "Idaho" = "Idaho",
+    "Illinois" = "Illinois",
+    "Indiana" = "Indiana",
+    "Iowa" = "Iowa",
+    "Kansas" = "Kansas",
+    "Kentucky" = "Kentucky",
+    "Louisiana" = "Luisiana",
+    "Maine" = "Maine",
+    "Maryland" = "Maryland",
+    "Massachusetts" = "Massachusetts",
+    "Michigan" = "Michigan",
+    "Minnesota" = "Minnesota",
+    "Mississippi" = "Mississippi",
+    "Missouri" = "Misuri",
+    "Montana" = "Montana",
+    "Nebraska" = "Nebraska",
+    "Nevada" = "Nevada",
+    "New Hampshire" = "Nuevo Hampshire",
+    "New Jersey" = "Nueva Jersey",
+    "New Mexico" = "Nuevo México",
+    "New York" = "Nueva York",
+    "North Carolina" = "Carolina del Norte",
+    "North Dakota" = "Dakota del Norte",
+    "Ohio" = "Ohio",
+    "Oklahoma" = "Oklahoma",
+    "Oregon" = "Oregón",
+    "Pennsylvania" = "Pensilvania",
+    "Rhode Island" = "Rhode Island",
+    "South Carolina" = "Carolina del Sur",
+    "South Dakota" = "Dakota del Sur",
+    "Tennessee" = "Tennessee",
+    "Texas" = "Texas",
+    "Utah" = "Utah",
+    "Vermont" = "Vermont",
+    "Virginia" = "Virginia",
+    "Washington" = "Washington",
+    "West Virginia" = "Virginia Occidental",
+    "Wisconsin" = "Wisconsin",
+    "Wyoming" = "Wyoming"
+  )
+
+  # Crear columna con versión en español (para mostrar) y dejar 'Estados' en inglés para hacer merges
+  final_tb$Estados_es <- sapply(final_tb$Estados, function(s) {
+    # intentar coincidencia directa con la lista inglesa
+    if (s %in% names(eng_to_esp)) return(eng_to_esp[[s]])
+    # si no, intentar normalizar y buscar por versión normalizada
+    s_norm <- normalize_state_names(s)
+    keys_norm <- normalize_state_names(names(eng_to_esp))
+    idx <- which(keys_norm == s_norm)
+    if (length(idx) >= 1) return(eng_to_esp[[names(eng_to_esp)[idx[1]]]])
+    # fallback: Title Case generico
+    s_tc <- normalize_state_names(s)
+    if (length(s_tc) >= 1) s_tc[1] else s
+  }, USE.NAMES = FALSE)
+
+  final_tb
 }
 
 

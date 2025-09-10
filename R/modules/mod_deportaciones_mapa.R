@@ -64,16 +64,16 @@ mod_deportaciones_mapa_server <- function(id, data = NULL, xlsx_path = "data/rep
       x2 <- tolower(trimws(x2))
       x2
     }
-    # Intentar unir data con coordenadas de EEUU (sin normalizar aún)
-    data_map_us <- merge(data, estados_coords, by = "Estados", all.x = TRUE)
+  # Intentar unir data con coordenadas de EEUU (merge por nombres en inglés)
+  data_map_us <- merge(data, estados_coords, by = "Estados", all.x = TRUE)
     # Tabla de centroides aproximados para estados de México (uso como fallback si los datos son mexicanos)
       mexico_coords <- data.frame(
       Estados = c("Aguascalientes","Baja California","Baja California Sur","Campeche","Chiapas","Chihuahua","Coahuila","Colima","Durango","Estado de México","Guanajuato","Guerrero","Hidalgo","Jalisco","Michoacán","Morelos","Nayarit","Nuevo León","Oaxaca","Puebla","Querétaro","Quintana Roo","San Luis Potosí","Sinaloa","Sonora","Tabasco","Tamaulipas","Tlaxcala","Veracruz","Yucatán","Zacatecas","Ciudad de México"),
       Latitud = c(21.8823,31.7719,24.1426,19.8301,16.7569,28.6320,27.0587,19.1227,24.0277,19.4969,21.0190,17.5065,20.1031,20.6597,19.5665,18.6815,21.7514,25.6678,17.0732,19.0413,20.5888,19.1816,22.1565,24.0193,17.8409,22.1566,23.6674,19.3139,19.1738,20.7090,22.7709,19.4326),
       Longitud = c(-102.2826,-115.5766,-110.3128,-90.5349,-92.6818,-106.0691,-101.7068,-103.6770,-104.6532,-99.7233,-101.2574,-99.4975,-98.7590,-103.3496,-101.7068,-99.1332,-104.8455,-100.3108,-96.7266,-98.2063,-100.3899,-87.0739,-101.6645,-110.9540,-93.0640,-97.8694,-98.2062,-97.7475,-96.1420,-102.5728,-102.5832,-99.1332)
     )
-    # Intentar unir data con centroides de México
-    data_map_mx <- merge(data, mexico_coords, by = "Estados", all.x = TRUE)
+  # Intentar unir data con centroides de México
+  data_map_mx <- merge(data, mexico_coords, by = "Estados", all.x = TRUE)
   # Contar coincidencias por latitud encontradas (normalizando nombres para comparar)
   # Normalizar nombres en ambos lados para matching
   if (exists("normalize_state_names", where = globalenv()) || exists("normalize_state_names", where = asNamespace("R"))) {
@@ -99,7 +99,7 @@ mod_deportaciones_mapa_server <- function(id, data = NULL, xlsx_path = "data/rep
     }
     message(sprintf("[mod_deportaciones_mapa] coincidencias US=%d MX=%d, usando: %s", matches_us, matches_mx, source_used))
     # Normalizar nombre de columna de conteo: aceptar 'Repatriados' o 'Repatriaciones' u otras variantes
-    if (!"Repatriados" %in% names(data_map)) {
+  if (!"Repatriados" %in% names(data_map)) {
       if ("Repatriaciones" %in% names(data_map)) {
         data_map$Repatriados <- data_map$Repatriaciones
       } else if ("Repatriacion" %in% names(data_map)) {
@@ -119,6 +119,17 @@ mod_deportaciones_mapa_server <- function(id, data = NULL, xlsx_path = "data/rep
         }
       }
     }
+    # Preparar nombre a mostrar en etiquetas: preferir 'Estados_es' si existe
+    if ("Estados_es" %in% names(data_map)) {
+      data_map$Estados_display <- data_map$Estados_es
+    } else {
+      data_map$Estados_display <- data_map$Estados
+    }
+    # Asegurar que Repatriados no tenga NA (usar 0 para faltantes)
+    if ("Repatriados" %in% names(data_map)) {
+      data_map$Repatriados <- as.integer(ifelse(is.na(data_map$Repatriados), 0, data_map$Repatriados))
+    }
+
     output$mapa_deportaciones <- leaflet::renderLeaflet({
       has_sf <- requireNamespace("sf", quietly = TRUE)
       has_maps <- requireNamespace("maps", quietly = TRUE)
@@ -151,14 +162,24 @@ mod_deportaciones_mapa_server <- function(id, data = NULL, xlsx_path = "data/rep
           states_sf$Repatriados <- NA_real_
           mi <- match(states_sf$region, agg$region)
           states_sf$Repatriados[!is.na(mi)] <- agg$Repatriados[mi[!is.na(mi)]]
+          # Construir nombre a mostrar para cada región (usar Estados_display si está disponible)
+          agg$display <- sapply(agg$region, function(r) {
+            idx <- which(data_map$region == r)
+            if (length(idx) >= 1 && "Estados_display" %in% names(data_map)) return(unique(data_map$Estados_display[idx])[1])
+            # fallback: convertir a Title Case
+            parts <- strsplit(r, " ")[[1]]
+            paste(sapply(parts, function(w) paste0(toupper(substring(w,1,1)), substring(w,2))), collapse = " ")
+          })
+          states_sf$display <- NA_character_
+          states_sf$display[!is.na(mi)] <- agg$display[mi[!is.na(mi)]]
           pal <- leaflet::colorNumeric("YlOrRd", domain = states_sf$Repatriados, na.color = "#EEEEEE")
           choropleth_map <- leaflet::leaflet(states_sf) %>%
             leaflet::addProviderTiles("CartoDB.Positron") %>%
             leaflet::addPolygons(fillColor = ~pal(Repatriados), fillOpacity = 0.75, color = "#444", weight = 1,
-                                 label = ~paste0(region, ": ", ifelse(is.na(Repatriados), "N/A", Repatriados), " repatriaciones"),
+                                 label = ~paste0(display, ": ", ifelse(is.na(Repatriados), "N/A", Repatriados), " repatriaciones"),
                                  highlight = leaflet::highlightOptions(weight = 2, color = "#666", bringToFront = TRUE)) %>%
             leaflet::addLegend(pal = pal, values = ~Repatriados, title = "Repatriaciones", position = "bottomright")
-          # Centrar en EEUU continental por defecto
+            # Centrar en EEUU continental por defecto
           return(choropleth_map %>% leaflet::setView(lng = -98.5795, lat = 39.8283, zoom = 4))
         }, error = function(e) {
           message("[mod_deportaciones_mapa] Error con tigris: ", conditionMessage(e))
@@ -180,11 +201,20 @@ mod_deportaciones_mapa_server <- function(id, data = NULL, xlsx_path = "data/rep
           states_sf$Repatriados <- NA_real_
           mi <- match(states_sf$region, agg$region)
           states_sf$Repatriados[!is.na(mi)] <- agg$Repatriados[mi[!is.na(mi)]]
+            # Construir display names similares a la rama anterior
+            agg$display <- sapply(agg$region, function(r) {
+              idx <- which(data_map$region == r)
+              if (length(idx) >= 1 && "Estados_display" %in% names(data_map)) return(unique(data_map$Estados_display[idx])[1])
+              parts <- strsplit(r, " ")[[1]]
+              paste(sapply(parts, function(w) paste0(toupper(substring(w,1,1)), substring(w,2))), collapse = " ")
+            })
+            states_sf$display <- NA_character_
+            states_sf$display[!is.na(mi)] <- agg$display[mi[!is.na(mi)]]
           pal <- leaflet::colorNumeric("YlOrRd", domain = states_sf$Repatriados, na.color = "#EEEEEE")
           choropleth_map <- leaflet::leaflet(states_sf) %>%
             leaflet::addProviderTiles("CartoDB.Positron") %>%
             leaflet::addPolygons(fillColor = ~pal(Repatriados), fillOpacity = 0.75, color = "#444", weight = 1,
-                                 label = ~paste0(region, ": ", ifelse(is.na(Repatriados), "N/A", Repatriados), " repatriaciones"),
+                                label = ~paste0(region, ": ", ifelse(is.na(Repatriados), "N/A", Repatriados), " repatriaciones"),
                                  highlight = leaflet::highlightOptions(weight = 2, color = "#666", bringToFront = TRUE)) %>%
             leaflet::addLegend(pal = pal, values = ~Repatriados, title = "Repatriaciones", position = "bottomright")
           # Centrar en EEUU continental por defecto
@@ -215,7 +245,7 @@ mod_deportaciones_mapa_server <- function(id, data = NULL, xlsx_path = "data/rep
           choropleth_map <- leaflet::leaflet(states_sf) %>%
             leaflet::addProviderTiles("CartoDB.Positron") %>%
             leaflet::addPolygons(fillColor = ~pal(Repatriados), fillOpacity = 0.75, color = "#444", weight = 1,
-                                 label = ~paste0(region, ": ", ifelse(is.na(Repatriados), "N/A", Repatriados), " repatriaciones"),
+                                 label = ~paste0(display, ": ", ifelse(is.na(Repatriados), "N/A", Repatriados), " repatriaciones"),
                                  highlight = leaflet::highlightOptions(weight = 2, color = "#666", bringToFront = TRUE)) %>%
             leaflet::addLegend(pal = pal, values = ~Repatriados, title = "Repatriaciones", position = "bottomright")
           choropleth_ok <- TRUE
@@ -272,13 +302,15 @@ mod_deportaciones_mapa_server <- function(id, data = NULL, xlsx_path = "data/rep
           data_coords <- data_map[!is.na(data_map$Latitud) & !is.na(data_map$Longitud) & is.finite(data_map$Latitud) & is.finite(data_map$Longitud), ]
           if (nrow(data_coords) == 0) {
             # Si no hay coordenadas, mostrar solo el mensaje de error
-            return(
+      return(
               leaflet::leaflet() %>%
                 leaflet::addProviderTiles("CartoDB.Positron") %>%
-                leaflet::addControl(html = err_html, position = "topright")
+        leaflet::addControl(html = err_html, position = "topright")
             )
           }
-          leaflet::leaflet(data_coords) %>%
+      # usar Estados_display en etiquetas
+      data_coords$Estados_display <- if ("Estados_es" %in% names(data_coords)) data_coords$Estados_es else data_coords$Estados
+      leaflet::leaflet(data_coords) %>%
             leaflet::addProviderTiles("CartoDB.Positron") %>%
             leaflet::addControl(html = err_html, position = "topright") %>%
             leaflet::addCircleMarkers(
@@ -288,7 +320,7 @@ mod_deportaciones_mapa_server <- function(id, data = NULL, xlsx_path = "data/rep
               color = "#1b5c4f",
               fillColor = "#1b5c4f",
               fillOpacity = 0.7,
-              label = ~paste0(Estados, ": ", ifelse(is.na(Repatriados), "N/A", Repatriados), " repatriaciones")
+        label = ~paste0(Estados_display, ": ", ifelse(is.na(Repatriados), "N/A", Repatriados), " repatriaciones")
             ) %>%
             leaflet::setView(lng = -98.5795, lat = 39.8283, zoom = 4)
         }
@@ -296,7 +328,8 @@ mod_deportaciones_mapa_server <- function(id, data = NULL, xlsx_path = "data/rep
       # Si los datos no son EEUU o faltan paquetes, informar y mostrar fallback con marcadores
       if (!is_us || !has_sf || !has_maps) {
         msg_html <- install_msg()
-        data_coords <- data_map[!is.na(data_map$Latitud) & !is.na(data_map$Longitud) & is.finite(data_map$Latitud) & is.finite(data_map$Longitud), ]
+  data_coords <- data_map[!is.na(data_map$Latitud) & !is.na(data_map$Longitud) & is.finite(data_map$Latitud) & is.finite(data_map$Longitud), ]
+  data_coords$Estados_display <- if ("Estados_es" %in% names(data_coords)) data_coords$Estados_es else data_coords$Estados
         if (nrow(data_coords) == 0) {
           return(
             leaflet::leaflet() %>%
@@ -304,7 +337,7 @@ mod_deportaciones_mapa_server <- function(id, data = NULL, xlsx_path = "data/rep
               leaflet::addControl(html = msg_html, position = "topright")
           )
         }
-        leaflet::leaflet(data_coords) %>%
+    leaflet::leaflet(data_coords) %>%
           leaflet::addProviderTiles("CartoDB.Positron") %>%
           leaflet::addControl(html = msg_html, position = "topright") %>%
           leaflet::addCircleMarkers(
@@ -314,12 +347,13 @@ mod_deportaciones_mapa_server <- function(id, data = NULL, xlsx_path = "data/rep
             color = "#1b5c4f",
             fillColor = "#1b5c4f",
             fillOpacity = 0.7,
-            label = ~paste0(Estados, ": ", ifelse(is.na(Repatriados), "N/A", Repatriados), " repatriaciones")
+      label = ~paste0(Estados_display, ": ", ifelse(is.na(Repatriados), "N/A", Repatriados), " repatriaciones")
           ) %>%
           leaflet::setView(lng = -98.5795, lat = 39.8283, zoom = 4)
       } else {
         # Fallback por seguridad (si algo no retornó antes)
-        data_coords <- data_map[!is.na(data_map$Latitud) & !is.na(data_map$Longitud) & is.finite(data_map$Latitud) & is.finite(data_map$Longitud), ]
+  data_coords <- data_map[!is.na(data_map$Latitud) & !is.na(data_map$Longitud) & is.finite(data_map$Latitud) & is.finite(data_map$Longitud), ]
+  data_coords$Estados_display <- if ("Estados_es" %in% names(data_coords)) data_coords$Estados_es else data_coords$Estados
         if (nrow(data_coords) == 0) {
           return(
             leaflet::leaflet() %>%
@@ -327,7 +361,7 @@ mod_deportaciones_mapa_server <- function(id, data = NULL, xlsx_path = "data/rep
               leaflet::addControl(html = "<div style='padding:8px; font-size:12px;'><b>No hay coordenadas válidas.</b></div>", position = "topright")
           )
         }
-        leaflet::leaflet(data_coords) %>%
+    leaflet::leaflet(data_coords) %>%
           leaflet::addProviderTiles("CartoDB.Positron") %>%
           leaflet::addCircleMarkers(
             lng = ~Longitud,
@@ -336,7 +370,7 @@ mod_deportaciones_mapa_server <- function(id, data = NULL, xlsx_path = "data/rep
             color = "#1b5c4f",
             fillColor = "#1b5c4f",
             fillOpacity = 0.7,
-            label = ~paste0(Estados, ": ", ifelse(is.na(Repatriados), "N/A", Repatriados), " repatriaciones")
+      label = ~paste0(Estados_display, ": ", ifelse(is.na(Repatriados), "N/A", Repatriados), " repatriaciones")
           ) %>%
           leaflet::setView(lng = -98.5795, lat = 39.8283, zoom = 4)
       }

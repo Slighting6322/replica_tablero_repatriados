@@ -39,6 +39,23 @@ server <- function(input, output, session) {
     s
   }
 
+  # Helper: deduplicar centros antes de contar/mostrar
+  # Prefiere 'id_albergue' si está disponible; si no, deduplica por coordenadas aproximadas
+  dedupe_centros <- function(df) {
+    if (is.null(df) || nrow(df) == 0) return(df)
+    # Si hay coordenadas, deduplicar por coordenadas redondeadas (primer registro por coordenada)
+    if (all(c("Latitud", "Longitud") %in% names(df))) {
+      coords <- paste0(format(round(as.numeric(df$Latitud), 6), nsmall = 6), "_", format(round(as.numeric(df$Longitud), 6), nsmall = 6))
+      return(df[!duplicated(coords), , drop = FALSE])
+    }
+    # Si no hay coordenadas pero existe id_albergue, deduplicar por id
+    if ("id_albergue" %in% names(df)) {
+      return(df[!duplicated(df$id_albergue), , drop = FALSE])
+    }
+    # Si no hay claves para deduplicar, devolver tal cual
+    df
+  }
+
   # DEBUG: imprimir nombres de input y existencia de selects para diagnostico
   shiny::observe({
     invalidateLater(2000, session)
@@ -259,16 +276,24 @@ server <- function(input, output, session) {
           iconAnchorX = 10, iconAnchorY = 20
         )
         tryCatch({
+          filtered_unique <- dedupe_centros(filtered)
           leaflet::leafletProxy("centrosmapa1-mapa_centros", session) %>%
             leaflet::clearMarkers() %>%
             leaflet::addMarkers(
-              data = filtered,
+              data = filtered_unique,
               lng = ~Longitud,
               lat = ~Latitud,
               label = ~Responsable,
               popup = ~paste0("<b>", Entidad, ", ", Municipio, "</b><br>Dirección: ", Direccion, "<br>Capacidad: ", Capacidad, "<br>Responsable: ", Responsable),
               icon = icon_personas
             )
+          # Ajustar vista al bounds de los puntos filtrados para hacerlos visibles
+          if (nrow(filtered_unique) > 0 && all(c("Latitud","Longitud") %in% names(filtered_unique))) {
+            lat_min <- min(filtered_unique$Latitud, na.rm = TRUE); lat_max <- max(filtered_unique$Latitud, na.rm = TRUE)
+            lng_min <- min(filtered_unique$Longitud, na.rm = TRUE); lng_max <- max(filtered_unique$Longitud, na.rm = TRUE)
+            try({ leaflet::leafletProxy("centrosmapa1-mapa_centros", session) %>% leaflet::fitBounds(lng_min, lat_min, lng_max, lat_max) }, silent = TRUE)
+          }
+          try({ shiny::showNotification(sprintf("Se muestran %d centros", nrow(filtered_unique)), type = "message", duration = 3) }, silent = TRUE)
         }, error = function(e) message("Error updating leaflet via proxy: ", e$message))
       }, ignoreInit = TRUE)
 
@@ -282,10 +307,11 @@ server <- function(input, output, session) {
           iconAnchorX = 10, iconAnchorY = 20
         )
         tryCatch({
+          centros_unique <- dedupe_centros(centros_data)
           leaflet::leafletProxy("centrosmapa1-mapa_centros", session) %>%
             leaflet::clearMarkers() %>%
             leaflet::addMarkers(
-              data = centros_data,
+              data = centros_unique,
               lng = ~Longitud,
               lat = ~Latitud,
               label = ~Responsable,
@@ -350,6 +376,12 @@ server <- function(input, output, session) {
               popup = ~paste0("<b>", Entidad, ", ", Municipio, "</b><br>Dirección: ", Direccion, "<br>Capacidad: ", Capacidad, "<br>Responsable: ", Responsable),
               icon = icon_personas
             )
+            if (nrow(filtered) > 0 && all(c("Latitud","Longitud") %in% names(filtered))) {
+              lat_min <- min(filtered$Latitud, na.rm = TRUE); lat_max <- max(filtered$Latitud, na.rm = TRUE)
+              lng_min <- min(filtered$Longitud, na.rm = TRUE); lng_max <- max(filtered$Longitud, na.rm = TRUE)
+              try({ leaflet::leafletProxy("centrosmapa1-mapa_centros", session) %>% leaflet::fitBounds(lng_min, lat_min, lng_max, lat_max) }, silent = TRUE)
+            }
+            try({ shiny::showNotification(sprintf("Se muestran %d centros", nrow(filtered)), type = "message", duration = 3) }, silent = TRUE)
         }, error = function(e) message("Error updating leaflet via proxy (filtros1 buscar): ", e$message))
       }, ignoreInit = TRUE)
 
@@ -384,7 +416,14 @@ server <- function(input, output, session) {
         message(sprintf("[filtros1 auto] filtered rows: %d", nrow(filtered_auto)))
         icon_personas_auto <- leaflet::makeIcon(iconUrl = "images/iconos_centros.png", iconWidth = 20, iconHeight = 20, iconAnchorX = 10, iconAnchorY = 20)
         tryCatch({
-          leaflet::leafletProxy("centrosmapa1-mapa_centros", session) %>% leaflet::clearMarkers() %>% leaflet::addMarkers(data = filtered_auto, lng = ~Longitud, lat = ~Latitud, label = ~Responsable, popup = ~paste0("<b>", Entidad, ", ", Municipio, "</b><br>Dirección: ", Direccion, "<br>Capacidad: ", Capacidad, "<br>Responsable: ", Responsable), icon = icon_personas_auto)
+          filtered_auto_unique <- dedupe_centros(filtered_auto)
+          leaflet::leafletProxy("centrosmapa1-mapa_centros", session) %>% leaflet::clearMarkers() %>% leaflet::addMarkers(data = filtered_auto_unique, lng = ~Longitud, lat = ~Latitud, label = ~Responsable, popup = ~paste0("<b>", Entidad, ", ", Municipio, "</b><br>Dirección: ", Direccion, "<br>Capacidad: ", Capacidad, "<br>Responsable: ", Responsable), icon = icon_personas_auto)
+        if (nrow(filtered_auto_unique) > 0 && all(c("Latitud","Longitud") %in% names(filtered_auto_unique))) {
+          lat_min <- min(filtered_auto_unique$Latitud, na.rm = TRUE); lat_max <- max(filtered_auto_unique$Latitud, na.rm = TRUE)
+          lng_min <- min(filtered_auto_unique$Longitud, na.rm = TRUE); lng_max <- max(filtered_auto_unique$Longitud, na.rm = TRUE)
+          try({ leaflet::leafletProxy("centrosmapa1-mapa_centros", session) %>% leaflet::fitBounds(lng_min, lat_min, lng_max, lat_max) }, silent = TRUE)
+        }
+        try({ shiny::showNotification(sprintf("Se muestran %d centros", nrow(filtered_auto_unique)), type = "message", duration = 3) }, silent = TRUE)
         }, error = function(e) message("Error updating leaflet via proxy (filtros1 auto): ", e$message))
       })
 
@@ -400,17 +439,18 @@ server <- function(input, output, session) {
           iconAnchorX = 10, iconAnchorY = 20
         )
         tryCatch({
+          centros_unique <- dedupe_centros(centros_data)
           leaflet::leafletProxy("centrosmapa1-mapa_centros", session) %>%
             leaflet::clearMarkers() %>%
             leaflet::addMarkers(
-              data = centros_data,
+              data = centros_unique,
               lng = ~Longitud,
               lat = ~Latitud,
               label = ~Responsable,
               popup = ~paste0("<b>", Entidad, ", ", Municipio, "</b><br>Dirección: ", Direccion, "<br>Capacidad: ", Capacidad, "<br>Responsable: ", Responsable),
               icon = icon_personas
             )
-        }, error = function(e) message("Error updating leaflet via proxy (filtros1 refrescar): ", e$message))
+        }, error = function(e) message("Error refreshing leaflet via proxy: ", e$message))
       }, ignoreInit = TRUE)
     }
   }, error = function(e) message("Observers for filtros1 not installed: ", e$message))

@@ -16,6 +16,9 @@ if (dir.exists(mods_dir)) {
   }
 }
 
+# Cargar funciones de helper y data loaders
+source("R/data_loader.R")
+
 # Validar que `fecha_corte` exista y sea una Date válida en el entorno global antes de levantar el server.
 if (!exists("fecha_corte")) {
   stop("[server.R] Fecha de corte ('fecha_corte') no encontrada en el entorno global. Asegúrate de ejecutar app.R que inicializa los datos.")
@@ -42,6 +45,7 @@ server <- function(input, output, session) {
         # Si no existen Entidad/Municipio, crear columnas vacías para evitar errores en el módulo
         if (!"Entidad" %in% names(df)) df$Entidad <- NA_character_
         if (!"Municipio" %in% names(df)) df$Municipio <- NA_character_
+        if (!"Direccion" %in% names(df)) df$Direccion <- NA_character_
         # Asegurar Capacidad/Latitud/Longitud
         if (!"Capacidad" %in% names(df)) df$Capacidad <- NA_real_
         if (!"Latitud" %in% names(df) && "latitude" %in% tolower(names(df))) df$Latitud <- df[[which(tolower(names(df))=="latitude")]]
@@ -169,6 +173,29 @@ server <- function(input, output, session) {
     }, error = function(e) message("mod_filters_dropdown_server error: ", e$message))
   }
 
+  # Montar fila de filtros principal debajo del título 'Filtro de Centros de Atención'
+  if (exists("mod_filters_row_server")) {
+    tryCatch({
+      filtros <- mod_filters_row_server("filtros1")
+      # Exponer en session$userData para que los observers puedan acceder
+      session$userData$filtros1 <- filtros
+
+      # Inicializar choices para los selects del módulo de filtros (si hay datos)
+      if (!is.null(centros_data)) {
+        # Estado: usar Latitud y Longitud según solicitud (formatear como "lat,lon")
+        if (all(c("Latitud", "Longitud") %in% names(centros_data))) {
+          estado_vals <- unique(with(centros_data, paste0(Latitud, ",", Longitud)))
+          tryCatch({ updateSelectInput(session, "filtros1-d1-select", choices = c("Seleccionar...", estado_vals)) }, error = function(e) {})
+        }
+        # Municipio: usar id_municipio si está disponible
+        if ("id_municipio" %in% names(centros_data)) {
+          muni_vals <- sort(unique(centros_data$id_municipio))
+          tryCatch({ updateSelectInput(session, "filtros1-d2-select", choices = c("Seleccionar...", as.character(muni_vals))) }, error = function(e) {})
+        }
+      }
+    }, error = function(e) message("mod_filters_row_server error: ", e$message))
+  }
+
   # No hay campo de texto 'Buscar' en la UI del mapa; no se crea reactive.
 
   # Buttons
@@ -209,7 +236,7 @@ server <- function(input, output, session) {
               lng = ~Longitud,
               lat = ~Latitud,
               label = ~Responsable,
-              popup = ~paste0("<b>", Entidad, ", ", Municipio, "</b><br>Capacidad: ", Capacidad, "<br>Responsable: ", Responsable),
+              popup = ~paste0("<b>", Entidad, ", ", Municipio, "</b><br>Dirección: ", Direccion, "<br>Capacidad: ", Capacidad, "<br>Responsable: ", Responsable),
               icon = icon_personas
             )
         }, error = function(e) message("Error updating leaflet via proxy: ", e$message))
@@ -232,13 +259,95 @@ server <- function(input, output, session) {
               lng = ~Longitud,
               lat = ~Latitud,
               label = ~Responsable,
-              popup = ~paste0("<b>", Entidad, ", ", Municipio, "</b><br>Capacidad: ", Capacidad, "<br>Responsable: ", Responsable),
+              popup = ~paste0("<b>", Entidad, ", ", Municipio, "</b><br>Dirección: ", Direccion, "<br>Capacidad: ", Capacidad, "<br>Responsable: ", Responsable),
               icon = icon_personas
             )
         }, error = function(e) message("Error refreshing leaflet via proxy: ", e$message))
       }, ignoreInit = TRUE)
     }
   }, error = function(e) message("Observers for map buttons not installed: ", e$message))
+
+  # Observers para la fila de filtros (`filtros1`): buscar / refrescar
+  tryCatch({
+    if (!is.null(session$userData$filtros1)) {
+      # Buscar: aplicar filtros compuestos (Estado via Latitud/Longitud string, Municipio via id_municipio, Capacidad via numeric)
+      shiny::observeEvent(session$userData$filtros1$buscar(), {
+        if (is.null(centros_data)) return()
+        sel_estado <- tryCatch({ session$userData$filtros1$sel1() }, error = function(e) NULL)
+        sel_municipio <- tryCatch({ session$userData$filtros1$sel2() }, error = function(e) NULL)
+        sel_capacidad <- tryCatch({ session$userData$filtros1$num() }, error = function(e) NULL)
+
+        filtered <- centros_data
+
+        # Estado: las opciones fueron inicializadas como "Latitud,Longitud" strings
+        if (!is.null(sel_estado) && sel_estado != "" && sel_estado != "Seleccionar...") {
+          parts <- strsplit(sel_estado, ",", fixed = TRUE)[[1]]
+          if (length(parts) >= 2) {
+            lat_sel <- as.numeric(parts[1]); lon_sel <- as.numeric(parts[2])
+            if (!is.na(lat_sel) && !is.na(lon_sel) && all(c("Latitud","Longitud") %in% names(filtered))) {
+              filtered <- filtered[!is.na(filtered$Latitud) & !is.na(filtered$Longitud) & abs(filtered$Latitud - lat_sel) < 1e-6 & abs(filtered$Longitud - lon_sel) < 1e-6, , drop = FALSE]
+            }
+          }
+        }
+
+        # Municipio: comparar con id_municipio (cast a character para seguridad)
+        if (!is.null(sel_municipio) && sel_municipio != "" && sel_municipio != "Seleccionar...") {
+          if ("id_municipio" %in% names(filtered)) {
+            filtered <- filtered[as.character(filtered$id_municipio) == as.character(sel_municipio), , drop = FALSE]
+          }
+        }
+
+        # Capacidad: filtrar por Capacidad >= valor si proporcionado
+        if (!is.null(sel_capacidad) && !is.na(as.numeric(sel_capacidad)) && "Capacidad" %in% names(filtered)) {
+          cap_num <- as.numeric(sel_capacidad)
+          if (!is.na(cap_num)) filtered <- filtered[!is.na(filtered$Capacidad) & filtered$Capacidad >= cap_num, , drop = FALSE]
+        }
+
+        icon_personas <- leaflet::makeIcon(
+          iconUrl = "images/iconos_centros.png",
+          iconWidth = 20, iconHeight = 20,
+          iconAnchorX = 10, iconAnchorY = 20
+        )
+        tryCatch({
+          leaflet::leafletProxy("centrosmapa1-mapa_centros", session) %>%
+            leaflet::clearMarkers() %>%
+            leaflet::addMarkers(
+              data = filtered,
+              lng = ~Longitud,
+              lat = ~Latitud,
+              label = ~Responsable,
+              popup = ~paste0("<b>", Entidad, ", ", Municipio, "</b><br>Dirección: ", Direccion, "<br>Capacidad: ", Capacidad, "<br>Responsable: ", Responsable),
+              icon = icon_personas
+            )
+        }, error = function(e) message("Error updating leaflet via proxy (filtros1 buscar): ", e$message))
+      }, ignoreInit = TRUE)
+
+      # Refrescar: limpiar selects y mostrar todos los markers
+      shiny::observeEvent(session$userData$filtros1$refrescar(), {
+        tryCatch({ updateSelectInput(session, "filtros1-d1-select", selected = "Seleccionar...") }, error = function(e) {})
+        tryCatch({ updateSelectInput(session, "filtros1-d2-select", selected = "Seleccionar...") }, error = function(e) {})
+        tryCatch({ updateNumericInput(session, "filtros1-n1-num", value = NULL) }, error = function(e) {})
+        if (is.null(centros_data)) return()
+        icon_personas <- leaflet::makeIcon(
+          iconUrl = "images/iconos_centros.png",
+          iconWidth = 20, iconHeight = 20,
+          iconAnchorX = 10, iconAnchorY = 20
+        )
+        tryCatch({
+          leaflet::leafletProxy("centrosmapa1-mapa_centros", session) %>%
+            leaflet::clearMarkers() %>%
+            leaflet::addMarkers(
+              data = centros_data,
+              lng = ~Longitud,
+              lat = ~Latitud,
+              label = ~Responsable,
+              popup = ~paste0("<b>", Entidad, ", ", Municipio, "</b><br>Dirección: ", Direccion, "<br>Capacidad: ", Capacidad, "<br>Responsable: ", Responsable),
+              icon = icon_personas
+            )
+        }, error = function(e) message("Error updating leaflet via proxy (filtros1 refrescar): ", e$message))
+      }, ignoreInit = TRUE)
+    }
+  }, error = function(e) message("Observers for filtros1 not installed: ", e$message))
 
   # Reactive con la fecha de corte (definida en global.R)
   fecha_reactivo <- reactive({

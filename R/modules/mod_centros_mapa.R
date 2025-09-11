@@ -30,7 +30,7 @@ mod_centros_mapa_server <- function(id, data) {
           lng = ~Longitud,
           lat = ~Latitud,
           label = ~Responsable,
-          popup = ~paste0("<b>", Entidad, ", ", Municipio, "</b><br>Capacidad: ", Capacidad, "<br>Responsable: ", Responsable),
+          popup = ~paste0("<b>", Entidad, ", ", Municipio, "</b><br>Dirección: ", Direccion, "<br>Capacidad: ", Capacidad, "<br>Responsable: ", Responsable),
           icon = icon_personas
         )
     })

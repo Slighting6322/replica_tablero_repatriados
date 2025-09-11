@@ -30,6 +30,24 @@ if (is.null(fecha_corte) || is.na(fecha_corte) || !inherits(fecha_corte, "Date")
 
 server <- function(input, output, session) {
 
+  # Helper: normalizar cadenas para comparación robusta
+  normalize_str <- function(x) {
+    if (is.null(x)) return(NA_character_)
+    s <- as.character(x)
+    s <- iconv(s, to = "ASCII//TRANSLIT")
+    s <- trimws(tolower(s))
+    s
+  }
+
+  # DEBUG: imprimir nombres de input y existencia de selects para diagnostico
+  shiny::observe({
+    invalidateLater(2000, session)
+    in_names <- names(input)
+    exists_d1 <- !is.null(input[["filtros1-d1-select"]])
+    exists_d2 <- !is.null(input[["filtros1-d2-select"]])
+    message(sprintf("[DEBUG inputs] #inputs=%d exist_d1=%s exist_d2=%s keys=%s", length(in_names), as.character(exists_d1), as.character(exists_d2), paste(head(in_names, 20), collapse=",")))
+  })
+
   # Leer datos de centros de atención
   centros_data <- tryCatch({
     # Preferir catálogo de albergues si existe; mapear columnas a las esperadas por los módulos
@@ -177,23 +195,33 @@ server <- function(input, output, session) {
   if (exists("mod_filters_row_server")) {
     tryCatch({
       filtros <- mod_filters_row_server("filtros1")
-      # Exponer en session$userData para que los observers puedan acceder
       session$userData$filtros1 <- filtros
+    }, error = function(e) message("mod_filters_row_server error: ", e$message))
 
-      # Inicializar choices para los selects del módulo de filtros (si hay datos)
-      if (!is.null(centros_data)) {
-        # Estado: usar Latitud y Longitud según solicitud (formatear como "lat,lon")
-        if (all(c("Latitud", "Longitud") %in% names(centros_data))) {
-          estado_vals <- unique(with(centros_data, paste0(Latitud, ",", Longitud)))
+    # Observer para poblar los selects cuando los datos y los inputs estén listos
+    shiny::observe({
+      invalidateLater(500, session)
+      if (is.null(centros_data)) return()
+      # Estado
+      if ("Entidad" %in% names(centros_data)) {
+        estado_vals <- unique(na.omit(centros_data$Entidad))
+        if (!is.null(input[["filtros1-d1-select"]])) {
           tryCatch({ updateSelectInput(session, "filtros1-d1-select", choices = c("Seleccionar...", estado_vals)) }, error = function(e) {})
         }
-        # Municipio: usar id_municipio si está disponible
-        if ("id_municipio" %in% names(centros_data)) {
-          muni_vals <- sort(unique(centros_data$id_municipio))
+      }
+      # Municipio
+      if ("Municipio" %in% names(centros_data)) {
+        muni_vals <- sort(unique(na.omit(centros_data$Municipio)))
+        if (!is.null(input[["filtros1-d2-select"]])) {
+          tryCatch({ updateSelectInput(session, "filtros1-d2-select", choices = c("Seleccionar...", as.character(muni_vals))) }, error = function(e) {})
+        }
+      } else if ("id_municipio" %in% names(centros_data)) {
+        muni_vals <- sort(unique(centros_data$id_municipio))
+        if (!is.null(input[["filtros1-d2-select"]])) {
           tryCatch({ updateSelectInput(session, "filtros1-d2-select", choices = c("Seleccionar...", as.character(muni_vals))) }, error = function(e) {})
         }
       }
-    }, error = function(e) message("mod_filters_row_server error: ", e$message))
+    })
   }
 
   # No hay campo de texto 'Buscar' en la UI del mapa; no se crea reactive.
@@ -221,7 +249,9 @@ server <- function(input, output, session) {
         if (is.null(sel) || sel == "" || sel == "Seleccionar...") {
           filtered <- centros_data
         } else {
-          filtered <- centros_data[centros_data$Entidad == sel, , drop = FALSE]
+          # Comparacion robusta usando normalizacion
+          norm_sel <- normalize_str(sel)
+          filtered <- centros_data[normalize_str(centros_data$Entidad) == norm_sel, , drop = FALSE]
         }
         icon_personas <- leaflet::makeIcon(
           iconUrl = "images/iconos_centros.png",
@@ -279,20 +309,20 @@ server <- function(input, output, session) {
 
         filtered <- centros_data
 
-        # Estado: las opciones fueron inicializadas como "Latitud,Longitud" strings
+        # Estado: filtrar por columna 'Entidad' si está disponible
         if (!is.null(sel_estado) && sel_estado != "" && sel_estado != "Seleccionar...") {
-          parts <- strsplit(sel_estado, ",", fixed = TRUE)[[1]]
-          if (length(parts) >= 2) {
-            lat_sel <- as.numeric(parts[1]); lon_sel <- as.numeric(parts[2])
-            if (!is.na(lat_sel) && !is.na(lon_sel) && all(c("Latitud","Longitud") %in% names(filtered))) {
-              filtered <- filtered[!is.na(filtered$Latitud) & !is.na(filtered$Longitud) & abs(filtered$Latitud - lat_sel) < 1e-6 & abs(filtered$Longitud - lon_sel) < 1e-6, , drop = FALSE]
-            }
+          if ("Entidad" %in% names(filtered)) {
+            norm_sel_e <- normalize_str(sel_estado)
+            filtered <- filtered[normalize_str(filtered$Entidad) == norm_sel_e, , drop = FALSE]
           }
         }
 
-        # Municipio: comparar con id_municipio (cast a character para seguridad)
+        # Municipio: filtrar por columna 'Municipio' si está disponible; si no, intentar por id_municipio
         if (!is.null(sel_municipio) && sel_municipio != "" && sel_municipio != "Seleccionar...") {
-          if ("id_municipio" %in% names(filtered)) {
+          if ("Municipio" %in% names(filtered)) {
+            norm_sel_m <- normalize_str(sel_municipio)
+            filtered <- filtered[normalize_str(filtered$Municipio) == norm_sel_m, , drop = FALSE]
+          } else if ("id_municipio" %in% names(filtered)) {
             filtered <- filtered[as.character(filtered$id_municipio) == as.character(sel_municipio), , drop = FALSE]
           }
         }
@@ -303,6 +333,7 @@ server <- function(input, output, session) {
           if (!is.na(cap_num)) filtered <- filtered[!is.na(filtered$Capacidad) & filtered$Capacidad >= cap_num, , drop = FALSE]
         }
 
+        message(sprintf("[filtros1 buscar] sel_estado=%s sel_municipio=%s sel_capacidad=%s", as.character(sel_estado), as.character(sel_municipio), as.character(sel_capacidad)))
         icon_personas <- leaflet::makeIcon(
           iconUrl = "images/iconos_centros.png",
           iconWidth = 20, iconHeight = 20,
@@ -321,6 +352,41 @@ server <- function(input, output, session) {
             )
         }, error = function(e) message("Error updating leaflet via proxy (filtros1 buscar): ", e$message))
       }, ignoreInit = TRUE)
+
+      # Aplicar filtros automáticamente al cambiar selecciones (para depuración y UX)
+      shiny::observe({
+        sel_estado_auto <- tryCatch({ session$userData$filtros1$sel1() }, error = function(e) NULL)
+        sel_muni_auto <- tryCatch({ session$userData$filtros1$sel2() }, error = function(e) NULL)
+        sel_cap_auto <- tryCatch({ session$userData$filtros1$num() }, error = function(e) NULL)
+        # Solo proceder si al menos una selección no es nula
+        if (is.null(centros_data)) return()
+        if ((is.null(sel_estado_auto) || sel_estado_auto == "Seleccionar...") && (is.null(sel_muni_auto) || sel_muni_auto == "Seleccionar...") && (is.null(sel_cap_auto) || is.na(as.numeric(sel_cap_auto)))) return()
+        message(sprintf("[filtros1 auto] sel_estado=%s sel_muni=%s sel_cap=%s", as.character(sel_estado_auto), as.character(sel_muni_auto), as.character(sel_cap_auto)))
+        filtered_auto <- centros_data
+        if (!is.null(sel_estado_auto) && sel_estado_auto != "" && sel_estado_auto != "Seleccionar...") {
+          if ("Entidad" %in% names(filtered_auto)) {
+            norm_sel_ea <- normalize_str(sel_estado_auto)
+            filtered_auto <- filtered_auto[normalize_str(filtered_auto$Entidad) == norm_sel_ea, , drop = FALSE]
+          }
+        }
+        if (!is.null(sel_muni_auto) && sel_muni_auto != "" && sel_muni_auto != "Seleccionar...") {
+          if ("Municipio" %in% names(filtered_auto)) {
+            norm_sel_ma <- normalize_str(sel_muni_auto)
+            filtered_auto <- filtered_auto[normalize_str(filtered_auto$Municipio) == norm_sel_ma, , drop = FALSE]
+          } else if ("id_municipio" %in% names(filtered_auto)) {
+            filtered_auto <- filtered_auto[as.character(filtered_auto$id_municipio) == as.character(sel_muni_auto), , drop = FALSE]
+          }
+        }
+        if (!is.null(sel_cap_auto) && !is.na(as.numeric(sel_cap_auto)) && "Capacidad" %in% names(filtered_auto)) {
+          cap_num_auto <- as.numeric(sel_cap_auto)
+          if (!is.na(cap_num_auto)) filtered_auto <- filtered_auto[!is.na(filtered_auto$Capacidad) & filtered_auto$Capacidad >= cap_num_auto, , drop = FALSE]
+        }
+        message(sprintf("[filtros1 auto] filtered rows: %d", nrow(filtered_auto)))
+        icon_personas_auto <- leaflet::makeIcon(iconUrl = "images/iconos_centros.png", iconWidth = 20, iconHeight = 20, iconAnchorX = 10, iconAnchorY = 20)
+        tryCatch({
+          leaflet::leafletProxy("centrosmapa1-mapa_centros", session) %>% leaflet::clearMarkers() %>% leaflet::addMarkers(data = filtered_auto, lng = ~Longitud, lat = ~Latitud, label = ~Responsable, popup = ~paste0("<b>", Entidad, ", ", Municipio, "</b><br>Dirección: ", Direccion, "<br>Capacidad: ", Capacidad, "<br>Responsable: ", Responsable), icon = icon_personas_auto)
+        }, error = function(e) message("Error updating leaflet via proxy (filtros1 auto): ", e$message))
+      })
 
       # Refrescar: limpiar selects y mostrar todos los markers
       shiny::observeEvent(session$userData$filtros1$refrescar(), {

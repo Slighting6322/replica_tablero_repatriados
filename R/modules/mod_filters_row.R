@@ -74,9 +74,9 @@ mod_filters_row_ui <- function(id) {
   btns_ui_fn <- get0("mod_filters_buttons_ui", mode = "function")
 
   ui1 <- if (!is.null(dd_ui_fn)) dd_ui_fn(ns("d1"), label = "Entidad:", choices = NULL) else
-    shiny::div(class = "filter-dropdown", shiny::div(class = "filter-label", "Entidad:"), shiny::selectInput(ns("d1_select"), NULL, choices = list("Seleccionar..."), width = "100%"))
+    shiny::div(class = "filter-dropdown", shiny::div(class = "filter-label", "Entidad:"), shiny::selectInput(ns("d1_select"), NULL, choices = list("Seleccionar..."), width = "100%", selectize = FALSE))
   ui2 <- if (!is.null(dd_ui_fn)) dd_ui_fn(ns("d2"), label = "Municipio:", choices = NULL) else
-    shiny::div(class = "filter-dropdown", shiny::div(class = "filter-label", "Municipio:"), shiny::selectInput(ns("d2_select"), NULL, choices = list("Seleccionar..."), width = "100%"))
+    shiny::div(class = "filter-dropdown", shiny::div(class = "filter-label", "Municipio:"), shiny::selectInput(ns("d2_select"), NULL, choices = list("Seleccionar..."), width = "100%", selectize = FALSE))
   ui3 <- if (!is.null(num_ui_fn)) num_ui_fn(ns("n1"), label = "Capacidad:") else
   shiny::div(class = "filter-number", shiny::div(class = "filter-label", "Capacidad:"), shiny::numericInput(ns("n1_num"), NULL, value = NULL, min = 0, width = "100%"))
   ui4 <- if (!is.null(btns_ui_fn)) btns_ui_fn(ns("btns")) else

@@ -3,7 +3,8 @@ mod_filters_dropdown_ui <- function(id, label = NULL, choices = NULL, placeholde
   ns <- shiny::NS(id)
   shiny::div(class = "filter-dropdown",
     if (!is.null(label)) shiny::div(class = "filter-label", label),
-  shiny::selectInput(ns("select"), label = NULL, choices = if (is.null(choices)) list(placeholder) else choices, selected = NULL, width = "100%")
+    # use native select (selectize = FALSE) so it doesn't auto-close unexpectedly
+    shiny::selectInput(ns("select"), label = NULL, choices = if (is.null(choices)) list(placeholder) else choices, selected = NULL, width = "100%", selectize = FALSE)
   )
 }
 

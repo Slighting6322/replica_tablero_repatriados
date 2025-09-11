@@ -319,6 +319,33 @@ get_albergues_data <- function(path = "data/cat_albergues.csv", force = FALSE) {
       }
     }
 
+    # Si existe el archivo que mapea municipios/estados, hacer left join por id_albergue
+    muni_path <- "data/albergues_municipios.csv"
+    if (file.exists(muni_path)) {
+      try({
+        muni <- utils::read.csv(muni_path, stringsAsFactors = FALSE, header = TRUE, check.names = FALSE, strip.white = TRUE)
+        # Asegurar columnas en minúsculas para matching simple
+        names(muni) <- tolower(names(muni))
+        if ("id_albergue" %in% names(muni)) {
+          # Renombrar columnas para evitar confusiones
+          if ("municipio" %in% names(muni)) names(muni)[names(muni) == "municipio"] <- "Municipio"
+          if ("estado" %in% names(muni)) names(muni)[names(muni) == "estado"] <- "Entidad"
+          # Convertir id_albergue en mismo tipo que df
+          if ("id_albergue" %in% names(df)) {
+            # A veces id_albergue viene como texto; forzar ambos a character para unir
+            df$id_albergue <- as.character(df$id_albergue)
+            muni$id_albergue <- as.character(muni$id_albergue)
+            df <- merge(df, muni, by = "id_albergue", all.x = TRUE, sort = FALSE)
+            # Si Entidad ya existía en df, preferir la existente (no sobreescribir) — si la nueva provee mejor información usarla
+            if ("Entidad" %in% names(df) && any(is.na(df$Entidad))) {
+              # Si tenemos una columna Entidad.x/Entidad.y por merge, limpiar
+              # Pero en nuestro caso hemos renombrado muni para que el merge cree una única columna Entidad
+            }
+          }
+        }
+      }, silent = TRUE)
+    }
+
     tibble::as_tibble(df)
   }
 

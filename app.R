@@ -20,8 +20,9 @@ if (exists("init_app_data")) {
 	# Verificar que la fecha asignada coincide con la calculada directamente del CSV
 	# (ayuda a detectar si alguna otra parte del entorno sobrescribe la variable)
 	expected_fecha <- tryCatch({
-		if (exists("get_fecha_corte")) {
-			get_fecha_corte(path = "data/repatriados_sample.csv")
+		xlsx_path <- "data/repatriados.xlsx"
+		if (file.exists(xlsx_path) && exists("get_fecha_corte", mode = "function")) {
+			get_fecha_corte(path = xlsx_path)
 		} else {
 			NA
 		}

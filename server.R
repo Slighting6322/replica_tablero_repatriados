@@ -29,9 +29,37 @@ server <- function(input, output, session) {
 
   # Leer datos de centros de atención
   centros_data <- tryCatch({
-    read.csv("data/centros_atencion.csv", stringsAsFactors = FALSE)
+    # Preferir catálogo de albergues si existe; mapear columnas a las esperadas por los módulos
+    if (file.exists("data/cat_albergues.csv") && exists("get_albergues_data", mode = "function")) {
+      df <- tryCatch(get_albergues_data("data/cat_albergues.csv"), error = function(e) {
+        message("get_albergues_data error: ", e$message)
+        NULL
+      })
+      if (!is.null(df) && nrow(df) > 0) {
+        # Asegurar columnas con los nombres que espera mod_centros_mapa: Latitud, Longitud, Entidad, Municipio, Capacidad, Responsable
+        # Mapear descripcion -> Responsable, latitude/longitude ya normalizadas por get_albergues_data
+        if ("Descripcion" %in% names(df) && !"Responsable" %in% names(df)) df$Responsable <- df$Descripcion
+        # Si no existen Entidad/Municipio, crear columnas vacías para evitar errores en el módulo
+        if (!"Entidad" %in% names(df)) df$Entidad <- NA_character_
+        if (!"Municipio" %in% names(df)) df$Municipio <- NA_character_
+        # Asegurar Capacidad/Latitud/Longitud
+        if (!"Capacidad" %in% names(df)) df$Capacidad <- NA_real_
+        if (!"Latitud" %in% names(df) && "latitude" %in% tolower(names(df))) df$Latitud <- df[[which(tolower(names(df))=="latitude")]]
+        if (!"Longitud" %in% names(df) && "longitude" %in% tolower(names(df))) df$Longitud <- df[[which(tolower(names(df))=="longitude")]]
+        # Return a data.frame compatible con mod_centros_mapa
+        as.data.frame(df, stringsAsFactors = FALSE, check.names = FALSE)
+      } else {
+        # Fallback a centros_atencion.csv si cat_albergues no es usable
+        tryCatch(read.csv("data/centros_atencion.csv", stringsAsFactors = FALSE), error = function(e) {
+          message("No se pudo leer centros_atencion.csv: ", e$message)
+          NULL
+        })
+      }
+    } else {
+      read.csv("data/centros_atencion.csv", stringsAsFactors = FALSE)
+    }
   }, error = function(e) {
-    message("No se pudo leer centros_atencion.csv: ", e$message)
+    message("No se pudo leer datos de centros: ", e$message)
     NULL
   })
   # Montar el módulo del mapa de centros si existe y los datos están disponibles

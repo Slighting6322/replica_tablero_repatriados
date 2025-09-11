@@ -1,0 +1,26 @@
+"id_albergue","id_municipio","descripcion","direccion","telefono","latitude","longitude","capacidad","disponibles"
+1,1,Parque Industrial Lago," Av. Paseo del Lago 16822, Lago Sur, 22217 Tijuana, B.C.","55 8530 1534","32.504167",-116.936666,2500,2500
+3,1,Unidad Deportiva Salvatierra,"Padre Salvatierra 1642, Salvatierra, 22604 Tijuana, B.C.","55 2909 4420","32.486389",-117.068889,2500,2500
+4,1,Kenit Finsa,"Av de los Insurgentes, Kino, 22254 Tijuana, B.C.","55 2304 5524","32.498056",-116.725556,2500,2500
+6,2,Campo Crea,"C. Salina Cruz 2050, Guajardo, 21050 Mexicali, B.C.","55 1319 6831","32.641389",-115.498333,2500,2500
+10,5,Maquiladora Agua Prieta," C. 7 y Avenida 16, INFONAVIT 1, 84200 Agua Prieta, Son.","55 8107 9965","31.321944",-109.555278,2500,2500
+15,8,Parque Sertoma,"Parque Sertoma S/N entre Calle Zaragoza y Calle Fco. I. Madero, Emiliano Zapata, Ojinaga, Chihuahua","963 129 5322","29.557817",-104.401086,2500,2500
+21,13,Polyforum La Fe Nuevo Laredo,"C. Eva Samano 2828, La Fe, 88170","868 123 0949","27.483889",-99.548056,2500,2500
+24,16,Centro Deportivo Juvenil Tam.,"Calle Cdad. Victoria, 87135 Cdad. Victoria, Tamps.","747 150 1151 ","23.7525",-99.101389,2500,2500
+22,14,Centro de Convenciones Expo Tam,"Libramiento Ote S/N, Azteca, 88680 Reynosa, Tamps.","981 829 1207","26.049722",-98.268333,2500,2498
+9,4,Unidad Deportiva Estrellas Nogalenses II,"Av. Tecnológico, Deportiva, 84068 Heroica Nogales, Son.","55 4510 6135","31.294167",-110.953611,2500,2500
+11,6,Gimnasio Ana Gabriela Guevara,"Av. Xólotl, Los Altares, Sin Asignación En Nombre de Asentamiento, 83296 Hermosillo, Son.","662 223 2844","29.022778",-110.9486,2500,2500
+13,7,"MONUMENTO AL PAPA ""EL PUNTO"" II","Av. Heroico Colegio Militar 250, Chamizal, 32300 Juárez, Chih.","55 2845 5465","31.7491",-106.4711,2500,2500
+16,8,IMSS Clínica número 30,"Libre Comercio SN, Fronteriza, 32881 Manuel Ojinaga, Chih.","614 129 3301","29.5593",-104.3993,2500,2500
+12,7,"MONUMENTO AL PAPA ""EL PUNTO""","Av. Heroico Colegio Militar 250, Chamizal, 32300 Juárez, Chih.","656 360 9608","31.7491",-106.4711,2500,1930
+18,10,Bodega de Industrial en Nueva Rosita II," Carretera Nueva Rosita - Allende, frente al CECYTEC, Nueva Rosita, Coah.","55 4778 1828","27.9441",-101.2058,2000,2000
+19,11,Bodega Industrial en Allende ,"Allende Centro, Carretera México - Piedras Negras Kilómetro 1257, San José, 26530 Allende, Coah.","878 145 7775","28.33192",-100.859737,2500,2500
+25,17,Predio Blvd. López Mateos,"Blvd. Adolfo López Mateos Col. Obrera C.P. 89050 Tampico, Tamaulipas","55 2398 1202","22.231944",-97.848333,2500,2500
+2,1,FLAMINGOS EVENTOS,"Tijuana-Ensenada #50, Planetario, 22635 Tijuana, B.C.","55 2911 7390","32.489167",-117.013056,2500,2469
+23,15,Estadio Municipal Pedro Salazar Maldonado,Ave. Del Maestro S/N Colonia Praxedis Balboa ,"55 9198 3305","25.861944",-97.490556,2500,2499
+7,3,Parque Industrial - SLRC,"José López Portillo #2, Parque Industrial, San Luis Río Colorado ","662 212 4967","32.458611",-114.716111,2500,2493
+8,4,Unidad Deportiva Estrellas Nogalenses,"Av. Tecnológico, Deportiva, 84068 Heroica Nogales, Son.","55 1510 6487","31.294167",-110.953611,2500,2445
+14,7,TECATE SUPREMO 2024,"Galgódromo de las Américas, Hipódromo, 32449 Juárez, Chih.","55 1368 6244","31.7281",-106.3947,2500,2274
+5,2,Estacionamiento Flex," Río Nuevo 955, Mexicali, México. ","686 345 3901","32.645833",-115.48,2500,2500
+17,9,Bodega de Industrial en Nueva Rosita," Carretera Nueva Rosita - Allende, frente al CECYTEC, Nueva Rosita, Coah.","55 1009 3612","27.9441",-101.2058,2500,2500
+20,12,Polideportivo Alianza Real,"Av. 20 de Noviembre, 66583 N.L.","868 797 9988","25.854444",-100.391667,2500,2499

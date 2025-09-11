@@ -29,35 +29,69 @@ if (file.exists("R/data_loader.R")) source("R/data_loader.R")
 
 # init_app_data: carga y parsea el dataset, devuelve lista con datos y fecha_corte
 init_app_data <- function(path = "data/repatriados_sample.csv") {
-  repatriados_data <- tryCatch(get_repatriados_data(path), error = function(e) tibble::tibble())
+  # Preferir XLSX como fuente canónica para fecha_corte
+  xlsx_path <- "data/repatriados.xlsx"
+  repatriados_data <- NULL
+  fecha_corte <- as.Date(NA)
 
-  # Determinar la columna de fecha y parsear robustamente
-  fecha_corte <- tryCatch({
-    if (nrow(repatriados_data) == 0 || ncol(repatriados_data) == 0) {
-      stop("[init_app_data] El archivo de datos está vacío o no tiene columnas.")
+  # Normalizar nombres de columna para matching (quitar espacios, signos, y pasar a minúsculas)
+  clean_name <- function(x) {
+    x2 <- iconv(x, to = "ASCII//TRANSLIT")
+    x2 <- tolower(x2)
+    x2 <- gsub("[^a-z0-9]", "", x2)
+    x2
+  }
+
+  parse_dates <- function(vec) {
+    # si ya son Date/POSIX, convertir
+    if (inherits(vec, c("Date", "POSIXt"))) return(as.Date(vec))
+    # usar lubridate parse_date_time con varios formatos comunes
+    orders <- c("Ymd", "ymd", "dmy", "mdy", "Ymd HMS", "ymd HMS", "dmy HMS", "mdy HMS")
+    parsed <- suppressWarnings(lubridate::parse_date_time(vec, orders = orders, tz = "UTC"))
+    # fallback a anytime si está disponible
+    if (all(is.na(parsed)) && requireNamespace("anytime", quietly = TRUE)) {
+      parsed <- suppressWarnings(anytime::anytime(vec))
     }
-    col_name <- if ("fecha_repatriacion" %in% names(repatriados_data)) "fecha_repatriacion" else names(repatriados_data)[1]
-    vec <- repatriados_data[[col_name]]
-    parse_try <- function(x) {
-      p <- suppressWarnings(as.Date(x))
-      if (all(is.na(p))) p <- suppressWarnings(lubridate::ymd(x))
-      if (all(is.na(p))) p <- suppressWarnings(lubridate::dmy(x))
-      if (all(is.na(p))) p <- suppressWarnings(lubridate::mdy(x))
-      if (all(is.na(p)) && requireNamespace("anytime", quietly = TRUE)) p <- suppressWarnings(anytime::anydate(x))
-      as.Date(p)
+    as.Date(parsed)
+  }
+
+  # 1) Intentar leer XLSX y tomar FECHA DE REPATRIACION (hoja 'Repatriados' esperada)
+  if (file.exists(xlsx_path) && requireNamespace("readxl", quietly = TRUE)) {
+    df_x <- tryCatch(readxl::read_excel(xlsx_path, sheet = "Repatriados", col_types = "text"), error = function(e) NULL)
+    if (!is.null(df_x) && nrow(df_x) > 0) {
+      nm <- names(df_x)
+      nm_clean <- vapply(nm, clean_name, character(1))
+
+      # buscar posibles variantes para 'fecha de repatriacion'
+      target_candidates <- c("fechaderepatriacion", "fecharepatriacion", "fecha")
+      match_idx <- which(nm_clean %in% target_candidates)
+      # si no hay coincidencias exactas, intentar búsqueda por subcadena
+      if (length(match_idx) == 0) {
+        match_idx <- grep("fecha.*repatriaci", nm_clean)
+      }
+      if (length(match_idx) >= 1) {
+        # preferir la primera coincidencia encontrada
+        col_name <- nm[match_idx[1]]
+        vec <- df_x[[col_name]]
+        parsed <- parse_dates(vec)
+        if (!all(is.na(parsed))) {
+          fecha_corte <- suppressWarnings(max(parsed, na.rm = TRUE))
+          message(sprintf("[init_app_data] fecha_corte detectada desde '%s': %s", col_name, as.character(fecha_corte)))
+        } else {
+          message("[init_app_data] Se encontró columna de fecha pero no pudo parsearse con los formatos conocidos.")
+        }
+      } else {
+        message("[init_app_data] No se encontró una columna de fecha en la hoja 'Repatriados' (buscando 'FECHA DE REPATRIACION').")
+      }
+      # Asignar repatriados_data (todas las columnas leídas como texto)
+      repatriados_data <- df_x
     }
-    if (inherits(vec, c("Date", "POSIXt"))) {
-      fecha_max <- suppressWarnings(max(vec, na.rm = TRUE))
-    } else {
-      parsed <- parse_try(vec)
-      if (all(is.na(parsed))) stop("[init_app_data] No se pudo encontrar una fecha válida en la columna '" , col_name , "' del archivo de datos.")
-      fecha_max <- suppressWarnings(max(parsed, na.rm = TRUE))
-    }
-    if (is.na(fecha_max) || is.infinite(fecha_max)) stop("[init_app_data] No se pudo determinar la fecha de corte (todas las fechas son NA o Inf).")
-    fecha_max
-  }, error = function(e) {
-    stop(e)
-  })
+  }
+
+  # Requerir que la fecha_corte haya sido obtenida del XLSX; sin XLSX válido, detener la inicialización
+  if (is.na(fecha_corte) || is.null(repatriados_data) || nrow(repatriados_data) == 0) {
+    stop("[init_app_data] No se encontró un XLSX válido en 'data/repatriados.xlsx' con una columna de FECHA DE REPATRIACION. La inicialización requiere ese archivo.")
+  }
 
   list(repatriados_data = repatriados_data, fecha_corte = fecha_corte)
 }

@@ -272,3 +272,70 @@ normalize_state_names <- function(x) {
   }, USE.NAMES = FALSE)
   s
 }
+
+# Cargar catálogo de albergues y normalizar columnas para su uso en módulos
+get_albergues_data <- function(path = "data/cat_albergues.csv", force = FALSE) {
+  loader <- function(p) {
+    if (!file.exists(p)) {
+      message("[get_albergues_data] file not found: ", p)
+      return(tibble::tibble())
+    }
+    df <- tryCatch(utils::read.csv(p, stringsAsFactors = FALSE, header = TRUE, check.names = FALSE, strip.white = TRUE),
+                   error = function(e) stop("error reading albergues csv: ", e$message))
+    if (nrow(df) == 0) return(tibble::tibble())
+
+    # Normalizar nombres en minúsculas para matching
+    names(df) <- tolower(names(df))
+
+    # Mapear nombres esperados a formato usado por módulos (TitleCase)
+    mapping <- list(
+      id_albergue = "id_albergue",
+      id_municipio = "id_municipio",
+      descripcion = "Descripcion",
+      direccion = "Direccion",
+      telefono = "Telefono",
+      latitude = "Latitud",
+      longitude = "Longitud",
+      capacidad = "Capacidad",
+      disponibles = "Disponibles"
+    )
+    for (old in names(mapping)) {
+      if (old %in% names(df)) names(df)[names(df) == old] <- mapping[[old]]
+    }
+
+    # Trim y normalizar texto
+    char_idx <- vapply(df, is.character, logical(1))
+    df[char_idx] <- lapply(df[char_idx], function(x) {
+      x2 <- iconv(x, to = "UTF-8")
+      trimws(x2)
+    })
+
+    # Forzar numéricos en columnas de coordenadas y capacidad
+    num_cols <- c("Latitud", "Longitud", "Capacidad", "Disponibles")
+    for (nc in num_cols) {
+      if (nc %in% names(df)) {
+        # eliminar caracteres no numéricos excepto signo menos y punto decimal
+        df[[nc]] <- suppressWarnings(as.numeric(gsub("[^0-9\\.-]", "", as.character(df[[nc]]))))
+      }
+    }
+
+    tibble::as_tibble(df)
+  }
+
+  # Si memoise está disponible, usar caché similar a get_repatriados_data
+  if (requireNamespace("memoise", quietly = TRUE)) {
+    if (!exists(".memo_albergues", envir = globalenv())) assign(".memo_albergues", memoise::memoise(loader), envir = globalenv())
+    if (isTRUE(force)) {
+      tryCatch(memoise::forget(get(".memo_albergues", envir = globalenv())), error = function(e) NULL)
+    }
+    tryCatch(get(".memo_albergues", envir = globalenv())(path), error = function(e) {
+      message("[get_albergues_data] error loading ", path, ": ", e$message)
+      tibble::tibble()
+    })
+  } else {
+    tryCatch(loader(path), error = function(e) {
+      message("[get_albergues_data] error loading ", path, ": ", e$message)
+      tibble::tibble()
+    })
+  }
+}

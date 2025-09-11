@@ -29,7 +29,7 @@ mod_centros_mapa_server <- function(id, data) {
         leaflet::addMarkers(
           lng = ~Longitud,
           lat = ~Latitud,
-          label = ~paste0("Responsable: ", Responsable),
+          label = ~Responsable,
           popup = ~paste0("<b>", Entidad, ", ", Municipio, "</b><br>Capacidad: ", Capacidad, "<br>Responsable: ", Responsable),
           icon = icon_personas
         )

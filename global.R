@@ -23,7 +23,7 @@ library(lubridate)
 if (file.exists("R/data_loader.R")) source("R/data_loader.R")
 
 # init_app_data: carga y parsea el dataset, devuelve lista con datos y fecha_corte
-init_app_data <- function(path = "data/repatriados_sample.csv") {
+init_app_data <- function(path = NULL) {
   # Preferir XLSX como fuente canónica para fecha_corte
   xlsx_path <- "data/repatriados.xlsx"
   repatriados_data <- NULL

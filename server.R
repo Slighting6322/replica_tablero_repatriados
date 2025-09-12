@@ -745,11 +745,59 @@ server <- function(input, output, session) {
     fecha_corte
   })
 
+  # Reactive específico para la pestaña home: fecha máxima reportada en registro_migrantes.csv
+  fecha_reactivo_home <- reactive({
+    # Intentar leer registro_migrantes.csv y extraer la fecha máxima de fecha_registro
+    registro_path <- "data/registro_migrantes.csv"
+    if (!file.exists(registro_path)) {
+      # Fallback a la fecha global si no existe el archivo
+      return(fecha_reactivo())
+    }
+    registro <- tryCatch(
+      read.csv(registro_path, stringsAsFactors = FALSE),
+      error = function(e) {
+        message(sprintf("[server] no se pudo leer %s: %s", registro_path, e$message))
+        return(NULL)
+      }
+    )
+    if (is.null(registro) || !"fecha_registro" %in% names(registro)) {
+      return(fecha_reactivo())
+    }
+    # Intentar parsear la columna a Date de forma robusta
+    fechas <- registro$fecha_registro
+    # Si ya es Date, usar tal cual
+    if (inherits(fechas, "Date")) {
+      max_fecha <- suppressWarnings(max(fechas, na.rm = TRUE))
+      if (is.infinite(max_fecha)) return(fecha_reactivo())
+      return(as.Date(max_fecha))
+    }
+    # Intentar parsear formatos comunes yyyy-mm-dd, dd/mm/yyyy, dd-mm-yyyy
+    parsed <- as.Date(fechas, tryFormats = c("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%m/%d/%Y"))
+    if (all(is.na(parsed))) {
+      # Intentar lubridate if available
+      if (requireNamespace("lubridate", quietly = TRUE)) {
+        parsed2 <- tryCatch(lubridate::ymd(fechas), error = function(e) NA)
+        parsed2 <- ifelse(is.na(parsed2), tryCatch(lubridate::dmy(fechas), error = function(e) NA), parsed2)
+        parsed2 <- as.Date(parsed2)
+        if (!all(is.na(parsed2))) {
+          max_fecha <- suppressWarnings(max(parsed2, na.rm = TRUE))
+          if (is.infinite(max_fecha)) return(fecha_reactivo())
+          return(as.Date(max_fecha))
+        }
+      }
+      return(fecha_reactivo())
+    }
+    max_fecha <- suppressWarnings(max(parsed, na.rm = TRUE))
+    if (is.infinite(max_fecha) || is.na(max_fecha)) return(fecha_reactivo())
+    as.Date(max_fecha)
+  })
+
   # Renderizar el texto de la fecha de corte (formato en español)
-  # Use central mod_fecha for formatted outputs
+  # Use central mod_fecha for formatted outputs. Para la pestaña home usamos
+  # la fecha máxima encontrada en registro_migrantes.csv (fecha_reactivo_home).
   if (exists("mod_fecha_server")) {
     tryCatch({
-      mod_fecha_server("fecha_home", fecha_reactivo = fecha_reactivo)
+      mod_fecha_server("fecha_home", fecha_reactivo = fecha_reactivo_home)
       mod_fecha_server("fecha_origen", fecha_reactivo = fecha_reactivo)
       # Forzar que el output no se suspenda aunque la sección esté oculta
       tryCatch({
@@ -757,12 +805,12 @@ server <- function(input, output, session) {
       }, error = function(e) {
         message(sprintf("[server] outputOptions error para fecha_origen-fecha: %s", e$message))
       })
-      message("[server] mounted mod_fecha for home and origen")
+      message("[server] mounted mod_fecha for home and origen (home uses registro_migrantes)")
     }, error = function(e) message("Error mounting mod_fecha: ", e$message))
   } else {
     # Fallback: simple renderText for template placeholders
     output$fecha_corte_texto_home <- renderText({
-      f <- fecha_reactivo()
+      f <- fecha_reactivo_home()
       if (is.null(f) || is.na(f)) return("")
       format(f, "%d de %B de %Y")
     })
@@ -776,7 +824,7 @@ server <- function(input, output, session) {
   # Montar servidores de módulos si existen (ids deben coincidir con ui.R: "home1", "origen1")
   if (exists("mod_home_server")) {
     tryCatch(
-      mod_home_server("home1", fecha_reactivo = fecha_reactivo),
+      mod_home_server("home1", fecha_reactivo = fecha_reactivo_home),
       error = function(e) message("mod_home_server error: ", e$message)
     )
   }

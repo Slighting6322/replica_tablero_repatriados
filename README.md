@@ -43,8 +43,8 @@ source('R/data_loader.R')
 tb <- agg_repatriados_from_xlsx(path = 'data/repatriados.xlsx', sheet = 'Repatriados')
 head(tb); nrow(tb)
 
-# Fecha máxima calculada (si prefieres usar un CSV de muestra aún disponible)
-get_fecha_corte(path = 'data/repatriados_sample.csv')
+# Fecha máxima calculada (si prefieres usar un CSV local, pásalo explícitamente)
+# get_fecha_corte(path = 'path/to/your_repatriados.csv')
 ```
 
 Si `file.exists()` devuelve `FALSE`, cambia tu working directory a la raíz del repo.

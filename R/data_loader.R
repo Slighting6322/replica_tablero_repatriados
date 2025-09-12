@@ -3,7 +3,7 @@
 ## Utilities to load and preprocess datasets used by the app.
 
 # Public functions provided:
-# - get_repatriados_data(path = "data/repatriados_sample.csv", force = FALSE)
+# get_repatriados_data(path = <path_to_csv>, force = FALSE)
 # - get_fecha_corte(path = NULL, data = NULL)
 # - agg_repatriados_from_xlsx(path = "data/repatriados.xlsx", sheet = "Repatriados", state_col = NULL)
 # - normalize_state_names(x)
@@ -14,7 +14,8 @@ loader_read_csv <- function(path) {
 }
 
 # Forward declarations (help static code checkers); real implementations follow below
-get_repatriados_data <- function(path = "data/repatriados_sample.csv", force = FALSE) {
+get_repatriados_data <- function(path = NULL, force = FALSE) {
+  # Forward declaration: returns empty tibble if no path provided
   tibble::tibble()
 }
 clear_repatriados_cache <- function() invisible(NULL)
@@ -22,7 +23,8 @@ clear_repatriados_cache <- function() invisible(NULL)
 # get_repatriados_data: uses memoise::memoise if available to cache in-memory
 if (requireNamespace("memoise", quietly = TRUE)) {
   .memo_loader <- memoise::memoise(loader_read_csv)
-  get_repatriados_data <- function(path = "data/repatriados_sample.csv", force = FALSE) {
+  get_repatriados_data <- function(path = NULL, force = FALSE) {
+    if (is.null(path) || !nzchar(path)) return(tibble::tibble())
     if (isTRUE(force)) {
       tryCatch(memoise::forget(.memo_loader), error = function(e) NULL)
     }
@@ -36,7 +38,8 @@ if (requireNamespace("memoise", quietly = TRUE)) {
     invisible(TRUE)
   }
 } else {
-  get_repatriados_data <- function(path = "data/repatriados_sample.csv", force = FALSE) {
+  get_repatriados_data <- function(path = NULL, force = FALSE) {
+    if (is.null(path) || !nzchar(path)) return(tibble::tibble())
     tryCatch(loader_read_csv(path), error = function(e) {
       message("[data_loader] error loading ", path, ": ", e$message)
       tibble::tibble()

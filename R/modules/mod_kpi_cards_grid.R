@@ -7,7 +7,7 @@ mod_kpi_cards_grid_ui <- function(id) {
   )
 }
 
-mod_kpi_cards_grid_server <- function(id, data_path = "data/datos_tarjeta.csv", external_values = NULL) {
+mod_kpi_cards_grid_server <- function(id, data_path = NULL, external_values = NULL) {
   shiny::moduleServer(id, function(input, output, session) {
     ns <- session$ns
     datos_reactivo <- shiny::reactive({
@@ -41,12 +41,23 @@ mod_kpi_cards_grid_server <- function(id, data_path = "data/datos_tarjeta.csv", 
         # Si external_values no es válido, caer al CSV
       }
 
-      datos <- tryCatch({
-        df <- read.csv(data_path, stringsAsFactors = FALSE)
-        if (!all(c("Categoria", "Valor") %in% names(df))) stop("Faltan columnas requeridas")
-        df
-      }, error = function(e) data.frame(Categoria = rep("-", 6), Valor = rep("-", 6), stringsAsFactors = FALSE))
-      datos <- datos[1:6, ]
+      # Si se proporcionó un path válido, intentar leer; si no, usar placeholders
+      if (!is.null(data_path) && file.exists(data_path)) {
+        datos <- tryCatch({
+          df <- read.csv(data_path, stringsAsFactors = FALSE)
+          if (!all(c("Categoria", "Valor") %in% names(df))) stop("Faltan columnas requeridas en el archivo de datos de KPIs")
+          n <- pmin(6, nrow(df))
+          if (n <= 0) return(data.frame(Categoria = rep("-", 6), Valor = rep("-", 6), stringsAsFactors = FALSE))
+          df[seq_len(n), , drop = FALSE]
+        }, error = function(e) {
+          message("mod_kpi_cards_grid_server: error leyendo data_path: ", e$message)
+          data.frame(Categoria = rep("-", 6), Valor = rep("-", 6), stringsAsFactors = FALSE)
+        })
+      } else {
+        # No hay archivo de datos; devolver placeholders (las tarjetas pueden ser rellenadas por external_values en montaje)
+        datos <- data.frame(Categoria = rep("-", 6), Valor = rep("-", 6), stringsAsFactors = FALSE)
+      }
+      datos <- datos[1:6, , drop = FALSE]
       datos
     })
 

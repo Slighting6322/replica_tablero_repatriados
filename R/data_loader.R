@@ -18,7 +18,6 @@ get_repatriados_data <- function(path = NULL, force = FALSE) {
   # Forward declaration: returns empty tibble if no path provided
   tibble::tibble()
 }
-clear_repatriados_cache <- function() invisible(NULL)
 
 # get_repatriados_data: uses memoise::memoise if available to cache in-memory
 if (requireNamespace("memoise", quietly = TRUE)) {
@@ -33,10 +32,7 @@ if (requireNamespace("memoise", quietly = TRUE)) {
       tibble::tibble()
     })
   }
-  clear_repatriados_cache <- function() {
-    tryCatch(memoise::forget(.memo_loader), error = function(e) NULL)
-    invisible(TRUE)
-  }
+  # memoise-based loader present; no explicit cache-clear helper retained
 } else {
   get_repatriados_data <- function(path = NULL, force = FALSE) {
     if (is.null(path) || !nzchar(path)) return(tibble::tibble())
@@ -45,7 +41,7 @@ if (requireNamespace("memoise", quietly = TRUE)) {
       tibble::tibble()
     })
   }
-  clear_repatriados_cache <- function() invisible(NULL)
+  # No explicit cache-clear helper when memoise is not present
 }
 
 

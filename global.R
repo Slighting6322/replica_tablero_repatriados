@@ -1,8 +1,3 @@
-# Leer el porcentaje de ocupación desde CSV y exponerlo como variable global
-porcentaje_ocupacion <- tryCatch({
-  val <- suppressWarnings(read.csv("data/porcentaje_ocupacion.csv", header = FALSE)[1, 1])
-  as.numeric(val)
-}, error = function(e) NA)
 # global.R
 # Este archivo se ejecuta una sola vez al iniciar la aplicación.
 # Úsalo para:

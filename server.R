@@ -91,37 +91,30 @@ server <- function(input, output, session) {
 
   # (Debug observer removed to reduce terminal noise)
 
-  # Leer datos de centros de atención
+  # Leer datos de centros de atención (usar cat_albergues.csv). No usar centros_atencion.csv.
   centros_data <- tryCatch({
-    # Preferir catálogo de albergues si existe; mapear columnas a las esperadas por los módulos
     if (file.exists("data/cat_albergues.csv") && exists("get_albergues_data", mode = "function")) {
       df <- tryCatch(get_albergues_data("data/cat_albergues.csv"), error = function(e) {
         message("get_albergues_data error: ", e$message)
         NULL
       })
       if (!is.null(df) && nrow(df) > 0) {
-        # Asegurar columnas con los nombres que espera mod_centros_mapa: Latitud, Longitud, Entidad, Municipio, Capacidad, Responsable
-        # Mapear descripcion -> Responsable, latitude/longitude ya normalizadas por get_albergues_data
+        # Ensure expected columns exist for mod_centros_mapa
         if ("Descripcion" %in% names(df) && !"Responsable" %in% names(df)) df$Responsable <- df$Descripcion
-        # Si no existen Entidad/Municipio, crear columnas vacías para evitar errores en el módulo
         if (!"Entidad" %in% names(df)) df$Entidad <- NA_character_
         if (!"Municipio" %in% names(df)) df$Municipio <- NA_character_
         if (!"Direccion" %in% names(df)) df$Direccion <- NA_character_
-        # Asegurar Capacidad/Latitud/Longitud
         if (!"Capacidad" %in% names(df)) df$Capacidad <- NA_real_
-        if (!"Latitud" %in% names(df) && "latitude" %in% tolower(names(df))) df$Latitud <- df[[which(tolower(names(df))=="latitude")]]
-        if (!"Longitud" %in% names(df) && "longitude" %in% tolower(names(df))) df$Longitud <- df[[which(tolower(names(df))=="longitude")]]
-        # Return a data.frame compatible con mod_centros_mapa
+        if (!"Latitud" %in% names(df) && any(tolower(names(df)) == "latitude")) df$Latitud <- df[[which(tolower(names(df)) == "latitude")[1]]]
+        if (!"Longitud" %in% names(df) && any(tolower(names(df)) == "longitude")) df$Longitud <- df[[which(tolower(names(df)) == "longitude")[1]]]
         as.data.frame(df, stringsAsFactors = FALSE, check.names = FALSE)
       } else {
-        # Fallback a centros_atencion.csv si cat_albergues no es usable
-        tryCatch(read.csv("data/centros_atencion.csv", stringsAsFactors = FALSE), error = function(e) {
-          message("No se pudo leer centros_atencion.csv: ", e$message)
-          NULL
-        })
+        message("get_albergues_data devolvió NULL o vacío; 'centros_data' será NULL (no se usará 'centros_atencion.csv').")
+        NULL
       }
     } else {
-      read.csv("data/centros_atencion.csv", stringsAsFactors = FALSE)
+      message("get_albergues_data no disponible o 'data/cat_albergues.csv' ausente; centros_data será NULL.")
+      NULL
     }
   }, error = function(e) {
     message("No se pudo leer datos de centros: ", e$message)
@@ -843,12 +836,77 @@ server <- function(input, output, session) {
   }
   # Montar barra de progreso de ocupación si el módulo existe
   if (exists("mod_progress_bar_server")) {
-    # Mount top progress bar statically (no external reactive passed)
-    tryCatch(
-      mod_progress_bar_server("ocupacion_bar1"),
-      error = function(e) message("mod_progress_bar_server error: ", e$message)
-    )
+  # Prepare holder for top bar values so we can reference them later for porcentaje output
+  ocupacion_bar1_values <- shiny::reactiveVal(NULL)
+
+  # Compute static values for the top progress bar using registro_migrantes and cat_albergues
+    tryCatch({
+      registro_all <- NULL
+      if (file.exists("data/registro_migrantes.csv")) {
+        registro_all <- tryCatch(read.csv("data/registro_migrantes.csv", stringsAsFactors = FALSE), error = function(e) NULL)
+      }
+      centros_all <- tryCatch(get_albergues_data("data/cat_albergues.csv"), error = function(e) NULL)
+
+      total_entradas <- 0
+      total_salidas  <- 0
+      if (!is.null(registro_all) && nrow(registro_all) > 0) {
+        reg1 <- registro_all[as.character(registro_all$id_tipo_registro) %in% as.character(1), , drop = FALSE]
+        reg2 <- registro_all[as.character(registro_all$id_tipo_registro) %in% as.character(2), , drop = FALSE]
+
+        safe_sum_col <- function(df, col) {
+          if (is.null(df) || nrow(df) == 0) return(0)
+          if (!(col %in% names(df))) return(0)
+          vals <- suppressWarnings(as.numeric(as.character(df[[col]])))
+          sum(vals, na.rm = TRUE)
+        }
+
+        total_entradas <- sum(
+          safe_sum_col(reg1, "numero_hombres"),
+          safe_sum_col(reg1, "numero_mujeres"),
+          safe_sum_col(reg1, "numero_ninos"),
+          safe_sum_col(reg1, "numero_lgbt"),
+          na.rm = TRUE
+        )
+        total_salidas <- sum(
+          safe_sum_col(reg2, "numero_hombres"),
+          safe_sum_col(reg2, "numero_mujeres"),
+          safe_sum_col(reg2, "numero_ninos"),
+          safe_sum_col(reg2, "numero_lgbt"),
+          na.rm = TRUE
+        )
+      }
+
+      personas_alojadas <- total_entradas - total_salidas
+      lugares_disponibles <- NA
+      if (!is.null(centros_all) && nrow(centros_all) > 0 && "Capacidad" %in% names(centros_all)) {
+        caps <- suppressWarnings(as.numeric(as.character(centros_all$Capacidad)))
+        caps <- caps[!is.na(caps)]
+        if (length(caps) > 0) lugares_disponibles <- sum(caps, na.rm = TRUE)
+      }
+
+      # Ensure sensible defaults
+      if (is.na(lugares_disponibles) || is.null(lugares_disponibles)) lugares_disponibles <- 0
+      if (is.na(personas_alojadas) || is.null(personas_alojadas)) personas_alojadas <- 0
+
+      # Set the reactiveVal with computed values
+      ocupacion_bar1_values(list(actual = as.numeric(personas_alojadas), total = as.numeric(lugares_disponibles)))
+      tryCatch(mod_progress_bar_server("ocupacion_bar1", external_values = ocupacion_bar1_values), error = function(e) message("mod_progress_bar_server error: ", e$message))
+    }, error = function(e) {
+      message("Error computing top progress values: ", e$message)
+      # Fallback: mount with a safe external reactive showing 0/0 to avoid reading barra_personas.csv
+      ocupacion_bar1_values(list(actual = 0, total = 0))
+      tryCatch(mod_progress_bar_server("ocupacion_bar1", external_values = ocupacion_bar1_values), error = function(e) message("fallback ocupacion_bar1 mount error: ", e$message))
+    })
   }
+  # Expose dynamic percentage for top bar based on ocupacion_bar1_values
+  try({
+    output$porcentaje_ocupacion_bar1 <- shiny::renderText({
+      vals <- tryCatch({ if (exists('ocupacion_bar1_values')) ocupacion_bar1_values() else NULL }, error = function(e) NULL)
+      if (is.null(vals) || is.null(vals$actual) || is.null(vals$total) || is.na(vals$total) || vals$total <= 0) return(NA)
+      pct <- round(100 * (as.numeric(vals$actual) / as.numeric(vals$total)), 1)
+      paste0(pct, "%")
+    })
+  }, silent = TRUE)
   if (exists("mod_origen_server")) {
     tryCatch(
       mod_origen_server("origen1", fecha_reactivo = fecha_reactivo),

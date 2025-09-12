@@ -36,10 +36,10 @@ ui <- fluidPage(class = "app-root-full",
                              "Fecha de corte: ",
                              if (exists("mod_fecha_ui")) mod_fecha_ui("fecha_home", inline = TRUE) else textOutput("fecha_corte_texto_home", inline = TRUE)
                            ),
-                           h2(class = "titulo-barra", paste0(
+                           h2(class = "titulo-barra", HTML(paste0(
                              "Ocupación General: ",
-                             if (!is.na(porcentaje_ocupacion)) paste0(porcentaje_ocupacion, "%") else ""
-                           )),
+                             shiny::uiOutput("porcentaje_ocupacion_bar1")
+                           ))),
                            # Barra de progreso de ocupación (modular)
                            if (exists("mod_progress_bar_ui")) mod_progress_bar_ui("ocupacion_bar1") else div(class="progress-fallback", "(Barra de ocupación no disponible)"),
                            # Tarjetas KPI debajo de la barra

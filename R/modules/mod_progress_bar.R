@@ -18,21 +18,22 @@ mod_progress_bar_server <- function(id, path = "data/barra_personas.csv", extern
   # external_values: optional reactive that returns a list(actual=..., total=...) to override file input
   shiny::moduleServer(id, function(input, output, session) {
 
-  datos_reactivo <- shiny::reactive({
+    datos_reactivo <- shiny::reactive({
       # If external_values reactive is provided and returns a valid list, use it
       if (!is.null(external_values)) {
         ev <- tryCatch({ external_values() }, error = function(e) NULL)
         if (!is.null(ev) && is.list(ev) && !is.null(ev$actual) && !is.null(ev$total)) {
           actual <- suppressWarnings(as.numeric(ev$actual))
           total  <- suppressWarnings(as.numeric(ev$total))
-          if (!is.na(actual) && !is.na(total) && total > 0) {
-            porcentaje <- pmin(100, (actual / total) * 100)
+          # Accept total >= 0 from external_values. If total == 0 set porcentaje to 0 (avoid divide by zero).
+          if (!is.na(actual) && !is.na(total) && total >= 0) {
+            porcentaje <- if (total > 0) pmin(100, (actual / total) * 100) else 0
             return(list(actual = actual, total = total, porcentaje = porcentaje))
           }
         }
-        # If external provided but invalid, fallthrough to file read
       }
 
+      # Fall back to reading file at `path` if external_values not provided / invalid
       df <- tryCatch({
         if (!file.exists(path)) stop("Archivo no encontrado: ", path)
         suppressWarnings(read.csv(path, header = TRUE, check.names = FALSE, strip.white = TRUE))
@@ -55,22 +56,22 @@ mod_progress_bar_server <- function(id, path = "data/barra_personas.csv", extern
       list(actual = actual, total = total, porcentaje = porcentaje)
     })
 
-  output$progress_container <- shiny::renderUI({
+    output$progress_container <- shiny::renderUI({
       d <- datos_reactivo()
       if (!is.null(d$error)) {
-  return(shiny::div(class = "progress-error", paste("No disponible:", d$error)))
+        return(shiny::div(class = "progress-error", paste("No disponible:", d$error)))
       }
       pct <- round(d$porcentaje, 1)
       actual_fmt <- formato_num(d$actual)
       total_fmt  <- formato_num(d$total)
       # Texto solo con porcentaje para accesibilidad dentro (screen reader) y número principal debajo
       shiny::tagList(
-        shiny::div(class = "progress-bar-outer", 
-            shiny::div(class = "progress-bar-inner", style = paste0("width:", pct, "%;"), 
-                `aria-valuenow` = pct, `aria-valuemin` = 0, `aria-valuemax` = 100,
-                role = "progressbar",
-                shiny::span(class = "sr-only", paste0(pct, "%"))
-            )
+        shiny::div(class = "progress-bar-outer",
+          shiny::div(class = "progress-bar-inner", style = paste0("width:", pct, "%;"),
+            `aria-valuenow` = pct, `aria-valuemin` = 0, `aria-valuemax` = 100,
+            role = "progressbar",
+            shiny::span(class = "sr-only", paste0(pct, "%"))
+          )
         ),
         shiny::div(class = "progress-numeros",
           shiny::div(class = "progress-col progress-col-actual",

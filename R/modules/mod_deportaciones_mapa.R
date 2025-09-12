@@ -140,20 +140,7 @@ mod_deportaciones_mapa_server <- function(id, data = NULL, xlsx_path = "data/rep
     }
 
     output$mapa_deportaciones <- leaflet::renderLeaflet({
-      has_sf <- requireNamespace("sf", quietly = TRUE)
-      has_maps <- requireNamespace("maps", quietly = TRUE)
-
-      # Mensaje base para instrucciones de instalación (R + SO)
-      install_msg <- function() {
-        paste0(
-          "<div style='padding:8px; font-size:12px; line-height:1.2;'>",
-          "<b>Polígonos no disponibles:</b> faltan paquetes necesarios para crear el choropleth.<br>",
-          "Instala en R: <code>install.packages(\"sf\")</code> y <code>install.packages(\"maps\")</code>.<br>",
-          "Si usas Linux (Debian/Ubuntu), instala antes: <code>sudo apt install libgdal-dev libproj-dev libgeos-dev libudunits2-dev</code>.<br>",
-          "En macOS: <code>brew install gdal proj geos udunits</code>",
-          "</div>"
-        )
-      }
+  # Asumir paquetes requeridos instalados (ver global.R): sf, maps, tigris cuando aplique
 
   # Intentar crear un choropleth usando tigris (datos del US Census) si está disponible y los datos parecen de EEUU
   is_us <- identical(source_used, "US")
@@ -199,151 +186,44 @@ mod_deportaciones_mapa_server <- function(id, data = NULL, xlsx_path = "data/rep
         })
       }
 
-  # Si los datos son de EEUU y tigris no está disponible o falla, intentar usar maps + sf
+  # Si los datos son de EEUU y tigris no está disponible o falla, intentar usar maps + sf (una sola rama simplificada)
   if (is_us && requireNamespace("sf", quietly = TRUE) && requireNamespace("maps", quietly = TRUE)) {
-        tryCatch({
-          m <- maps::map("state", fill = TRUE, plot = FALSE)
-          states_sf <- sf::st_as_sf(m)
-          # forzar CRS WGS84 por seguridad
-          try({ states_sf <- sf::st_transform(states_sf, crs = 4326) }, silent = TRUE)
-          region_names <- sapply(strsplit(m$names, ":"), function(x) x[1])
-          region_names <- tolower(region_names)
-          states_sf$region <- region_names
-          data_map$region <- tolower(iconv(as.character(data_map$Estados), from = "UTF-8", to = "ASCII//TRANSLIT"))
-          states_sf$region <- tolower(iconv(as.character(states_sf$region), from = "UTF-8", to = "ASCII//TRANSLIT"))
-          agg <- aggregate(Repatriados ~ region, data = data_map, FUN = function(x) if (all(is.na(x))) NA else sum(as.numeric(x), na.rm = TRUE))
-          # preserve order/rows of states_sf using match instead of merge
-          states_sf$Repatriados <- NA_real_
-          mi <- match(states_sf$region, agg$region)
-          states_sf$Repatriados[!is.na(mi)] <- agg$Repatriados[mi[!is.na(mi)]]
-            # Construir display names similares a la rama anterior
-            agg$display <- sapply(agg$region, function(r) {
-              idx <- which(data_map$region == r)
-              if (length(idx) >= 1 && "Estados_display" %in% names(data_map)) return(unique(data_map$Estados_display[idx])[1])
-              parts <- strsplit(r, " ")[[1]]
-              paste(sapply(parts, function(w) paste0(toupper(substring(w,1,1)), substring(w,2))), collapse = " ")
-            })
-            states_sf$display <- NA_character_
-            states_sf$display[!is.na(mi)] <- agg$display[mi[!is.na(mi)]]
-          pal <- leaflet::colorNumeric("YlOrRd", domain = states_sf$Repatriados, na.color = "#EEEEEE")
-          choropleth_map <- leaflet::leaflet(states_sf) %>%
-            leaflet::addProviderTiles("CartoDB.Positron") %>%
-            leaflet::addPolygons(fillColor = ~pal(Repatriados), fillOpacity = 0.75, color = "#444", weight = 1,
-                                label = ~paste0(region, ": ", ifelse(is.na(Repatriados), "N/A", Repatriados), " repatriaciones"),
-                                 highlight = leaflet::highlightOptions(weight = 2, color = "#666", bringToFront = TRUE)) %>%
-            leaflet::addLegend(pal = pal, values = ~Repatriados, title = "Repatriaciones", position = "bottomright")
-          # Centrar en EEUU continental por defecto
-          return(choropleth_map %>% leaflet::setView(lng = -98.5795, lat = 39.8283, zoom = 4))
-        }, error = function(e) {
-          message("[mod_deportaciones_mapa] Error creando choropleth con maps+sf: ", conditionMessage(e))
-        })
-      }
-
-  if (is_us && has_sf && has_maps) {
-        choropleth_ok <- FALSE
-        choropleth_map <- NULL
-        choropleth_err <- NULL
-        tryCatch({
-          m <- maps::map("state", fill = TRUE, plot = FALSE)
-          # Convertir a sf
-          states_sf <- sf::st_as_sf(m)
-          try({ states_sf <- sf::st_transform(states_sf, crs = 4326) }, silent = TRUE)
-          # Normalizar nombres de región (map$names contiene strings como 'new york:main')
-          region_names <- sapply(strsplit(m$names, ":"), function(x) x[1])
-          region_names <- tolower(region_names)
-          states_sf$region <- region_names
-          # Normalizar nombres en data_map
-          data_map$region <- tolower(data_map$Estados)
-          # Unir datos de repatriaciones por región
-          states_sf <- merge(states_sf, data_map[, c("region", "Repatriados")], by.x = "region", by.y = "region", all.x = TRUE)
-          # Paleta
-          pal <- leaflet::colorNumeric("YlOrRd", domain = states_sf$Repatriados, na.color = "#EEEEEE")
-          choropleth_map <- leaflet::leaflet(states_sf) %>%
-            leaflet::addProviderTiles("CartoDB.Positron") %>%
-            leaflet::addPolygons(fillColor = ~pal(Repatriados), fillOpacity = 0.75, color = "#444", weight = 1,
-                                 label = ~paste0(display, ": ", ifelse(is.na(Repatriados), "N/A", Repatriados), " repatriaciones"),
-                                 highlight = leaflet::highlightOptions(weight = 2, color = "#666", bringToFront = TRUE)) %>%
-            leaflet::addLegend(pal = pal, values = ~Repatriados, title = "Repatriaciones", position = "bottomright")
-          choropleth_ok <- TRUE
-        }, error = function(e) {
-          choropleth_err <<- conditionMessage(e)
-          # Registrar en consola del servidor para facilitar debugging
-          message("[mod_deportaciones_mapa] Error creando choropleth: ", choropleth_err)
-          # Si el error es por mismatch de filas, intentar una conversión alternativa usando maptools + sp
-          if (grepl("replacement has", choropleth_err, ignore.case = TRUE)) {
-            if (requireNamespace("maptools", quietly = TRUE) && requireNamespace("sp", quietly = TRUE)) {
-              try({
-                # Reconstruir IDs por región y convertir a SpatialPolygons
-                IDs <- sapply(strsplit(m$names, ":"), function(x) x[1])
-                sp_polys <- maptools::map2SpatialPolygons(m, IDs = IDs, proj4string = sp::CRS("+proj=longlat +datum=WGS84"))
-                states_sf <- sf::st_as_sf(sp_polys)
-                # rownames(states_sf) suelen contener los IDs (regiones)
-                states_sf$region <- tolower(rownames(states_sf))
-                data_map$region <- tolower(iconv(as.character(data_map$Estados), from = "UTF-8", to = "ASCII//TRANSLIT"))
-                states_sf$region <- tolower(iconv(as.character(states_sf$region), from = "UTF-8", to = "ASCII//TRANSLIT"))
-                agg <- aggregate(Repatriados ~ region, data = data_map, FUN = function(x) if (all(is.na(x))) NA else sum(as.numeric(x), na.rm = TRUE))
-                # preserve order/rows of states_sf using match instead of merge
-                states_sf$Repatriados <- NA_real_
-                mi <- match(states_sf$region, agg$region)
-                states_sf$Repatriados[!is.na(mi)] <- agg$Repatriados[mi[!is.na(mi)]]
-                pal <- leaflet::colorNumeric("YlOrRd", domain = states_sf$Repatriados, na.color = "#EEEEEE")
-                choropleth_map <<- leaflet::leaflet(states_sf) %>%
-                  leaflet::addProviderTiles("CartoDB.Positron") %>%
-                  leaflet::addPolygons(fillColor = ~pal(Repatriados), fillOpacity = 0.75, color = "#444", weight = 1,
-                                       label = ~paste0(region, ": ", ifelse(is.na(Repatriados), "N/A", Repatriados), " repatriaciones"),
-                                       highlight = leaflet::highlightOptions(weight = 2, color = "#666", bringToFront = TRUE)) %>%
-                  leaflet::addLegend(pal = pal, values = ~Repatriados, title = "Repatriaciones", position = "bottomright")
-                choropleth_ok <<- TRUE
-                message("[mod_deportaciones_mapa] Choropleth generado usando maptools::map2SpatialPolygons")
-              }, silent = TRUE)
-            } else {
-              message("[mod_deportaciones_mapa] maptools/sp no disponibles, no se puede intentar conversión alternativa. Considera instalar 'maptools' y 'sp'.")
-            }
-          }
-        })
-
-          if (choropleth_ok) {
-          # Centrar en EEUU continental por defecto
-          return(choropleth_map %>% leaflet::setView(lng = -98.5795, lat = 39.8283, zoom = 4))
-        } else {
-          # Si falló la creación del choropleth, mostrar aviso encima del mapa con el mensaje de error
-          err_html <- if (!is.null(choropleth_err)) {
-            paste0("<div style='padding:6px; font-size:12px;'><b>Error creando polígonos:</b> ", htmltools::htmlEscape(choropleth_err),
-                   "<br>Se mostrará fallback con marcadores.</div>")
-          } else {
-            "<div style='padding:6px; font-size:12px;'><b>Error creando polígonos.</b> Se mostrará fallback con marcadores.</div>"
-          }
-          # Mostrar marcadores con la unión seleccionada (US o MX)
-          # Filtrar filas con coordenadas válidas
-          data_coords <- data_map[!is.na(data_map$Latitud) & !is.na(data_map$Longitud) & is.finite(data_map$Latitud) & is.finite(data_map$Longitud), ]
-          if (nrow(data_coords) == 0) {
-            # Si no hay coordenadas, mostrar solo el mensaje de error
-      return(
-              leaflet::leaflet() %>%
-                leaflet::addProviderTiles("CartoDB.Positron") %>%
-        leaflet::addControl(html = err_html, position = "topright")
-            )
-          }
-      # usar Estados_display en etiquetas
-      data_coords$Estados_display <- if ("Estados_es" %in% names(data_coords)) data_coords$Estados_es else data_coords$Estados
-      leaflet::leaflet(data_coords) %>%
-            leaflet::addProviderTiles("CartoDB.Positron") %>%
-            leaflet::addControl(html = err_html, position = "topright") %>%
-            leaflet::addCircleMarkers(
-              lng = ~Longitud,
-              lat = ~Latitud,
-              radius = 8,
-              color = "#1b5c4f",
-              fillColor = "#1b5c4f",
-              fillOpacity = 0.7,
-        label = ~paste0(Estados_display, ": ", ifelse(is.na(Repatriados), "N/A", Repatriados), " repatriaciones")
-            ) %>%
-            leaflet::setView(lng = -98.5795, lat = 39.8283, zoom = 4)
-        }
-      }
+    tryCatch({
+      m <- maps::map("state", fill = TRUE, plot = FALSE)
+      states_sf <- sf::st_as_sf(m)
+      try({ states_sf <- sf::st_transform(states_sf, crs = 4326) }, silent = TRUE)
+      region_names <- sapply(strsplit(m$names, ":"), function(x) x[1])
+      states_sf$region <- tolower(iconv(region_names, from = "UTF-8", to = "ASCII//TRANSLIT"))
+      data_map$region <- tolower(iconv(as.character(data_map$Estados), from = "UTF-8", to = "ASCII//TRANSLIT"))
+      agg <- aggregate(Repatriados ~ region, data = data_map, FUN = function(x) if (all(is.na(x))) NA else sum(as.numeric(x), na.rm = TRUE))
+      states_sf$Repatriados <- NA_real_
+      mi <- match(states_sf$region, agg$region)
+      states_sf$Repatriados[!is.na(mi)] <- agg$Repatriados[mi[!is.na(mi)]]
+      # Construir display names usando Estados_display si existe
+      agg$display <- sapply(agg$region, function(r) {
+        idx <- which(data_map$region == r)
+        if (length(idx) >= 1 && "Estados_display" %in% names(data_map)) return(unique(data_map$Estados_display[idx])[1])
+        parts <- strsplit(r, " ")[[1]]
+        paste(sapply(parts, function(w) paste0(toupper(substring(w,1,1)), substring(w,2))), collapse = " ")
+      })
+      states_sf$display <- NA_character_
+      states_sf$display[!is.na(mi)] <- agg$display[mi[!is.na(mi)]]
+      pal <- leaflet::colorNumeric("YlOrRd", domain = states_sf$Repatriados, na.color = "#EEEEEE")
+      choropleth_map <- leaflet::leaflet(states_sf) %>%
+        leaflet::addProviderTiles("CartoDB.Positron") %>%
+        leaflet::addPolygons(fillColor = ~pal(Repatriados), fillOpacity = 0.75, color = "#444", weight = 1,
+                             label = ~paste0(display, ": ", ifelse(is.na(Repatriados), "N/A", Repatriados), " repatriaciones"),
+                             highlight = leaflet::highlightOptions(weight = 2, color = "#666", bringToFront = TRUE)) %>%
+        leaflet::addLegend(pal = pal, values = ~Repatriados, title = "Repatriaciones", position = "bottomright")
+      return(choropleth_map %>% leaflet::setView(lng = -98.5795, lat = 39.8283, zoom = 4))
+    }, error = function(e) {
+      message("[mod_deportaciones_mapa] maps+sf choropleth error: ", conditionMessage(e))
+    })
+  }
       # Si los datos no son EEUU o faltan paquetes, informar y mostrar fallback con marcadores
-      if (!is_us || !has_sf || !has_maps) {
-        msg_html <- install_msg()
+      if (!is_us) {
+        # Si los datos no son EEUU, mostrar fallback con marcadores (las dependencias requieren estar instaladas según global.R)
+        msg_html <- "<div style='padding:8px; font-size:12px;'><b>Mapa no disponible para la región proporcionada.</b></div>"
   data_coords <- data_map[!is.na(data_map$Latitud) & !is.na(data_map$Longitud) & is.finite(data_map$Latitud) & is.finite(data_map$Longitud), ]
   data_coords$Estados_display <- if ("Estados_es" %in% names(data_coords)) data_coords$Estados_es else data_coords$Estados
         if (nrow(data_coords) == 0) {

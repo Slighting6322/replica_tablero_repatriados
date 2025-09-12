@@ -13,6 +13,18 @@ library(readr)
 library(dplyr)
 library(lubridate)
 
+# Enfoque: requerir paquetes de runtime al inicio y fallar con mensaje claro si faltan.
+.required_pkgs <- c("sf", "rnaturalearth", "leaflet", "readxl", "tigris", "htmltools", "maps")
+.missing_pkgs <- .required_pkgs[!vapply(.required_pkgs, requireNamespace, logical(1), quietly = TRUE)]
+if (length(.missing_pkgs) > 0) {
+  stop(sprintf(
+    "Faltan paquetes requeridos: %s. Instálalos con: install.packages(c(%s))",
+    paste(.missing_pkgs, collapse = ", "),
+    paste0("'", .missing_pkgs, "'", collapse = ", ")
+  ))
+}
+rm(.required_pkgs, .missing_pkgs)
+
 # global.R
 # Este archivo define la función `init_app_data()` que carga los datos
 # necesarios y devuelve una lista con `repatriados_data` y `fecha_corte`.

@@ -81,22 +81,16 @@ mod_repatriaciones_mx_server <- function(id, data) {
         data$.__estado_norm <- NULL
       }
 
-      has_sf <- requireNamespace("sf", quietly = TRUE)
-      if (!has_sf) {
-        # fallback: show markers and an installation message
-        msg_html <- paste0("<div style='padding:8px; font-size:12px;'><b>sf no disponible.</b> Instala 'sf' para mostrar polígonos de estados.</div>")
-        return(
-          leaflet::leaflet(data) %>%
-            leaflet::addProviderTiles("CartoDB.Positron") %>%
-            leaflet::addControl(html = msg_html, position = "topright") %>%
-            leaflet::addCircleMarkers(lng = ~Longitud, lat = ~Latitud, label = ~paste0(Estados, ": ", ifelse(is.na(Repatriaciones), "N/A", Repatriaciones)))
-        )
-      }
+  # Asumir que paquetes requeridos (sf, rnaturalearth) están disponibles (ver global.R)
 
-      # Intentar usar rnaturalearth para obtener polígonos de estados de México (no requiere archivos locales)
-      used_poly <- FALSE
-  if (requireNamespace("rnaturalearth", quietly = TRUE) && has_sf) {
-        tryCatch({
+    # Intentar usar rnaturalearth para obtener polígonos de estados de México (no requiere archivos locales)
+  tryCatch({
+        # Intentar obtener polígonos con rnaturalearth (asume 'rnaturalearth' y 'sf' instalados)
+        states_sf <- rnaturalearth::ne_states(country = "Mexico", returnclass = "sf")
+        # continuar con pipeline de construcción de choropleth
+        
+        
+        
           states_sf <- rnaturalearth::ne_states(country = "Mexico", returnclass = "sf")
           # encontrar columna con nombre del estado
           nm_col <- NULL
@@ -135,7 +129,6 @@ mod_repatriaciones_mx_server <- function(id, data) {
             states_sf$display[missing_disp] <- title_case[missing_disp]
           }
           pal <- leaflet::colorNumeric("YlOrRd", domain = states_sf$Repatriaciones, na.color = "#EEEEEE")
-          used_poly <- TRUE
           return(
             leaflet::leaflet(states_sf) %>%
               leaflet::addProviderTiles("CartoDB.Positron") %>%
@@ -147,57 +140,10 @@ mod_repatriaciones_mx_server <- function(id, data) {
         }, error = function(e) {
           message("[mod_repatriaciones_mx] rnaturalearth error: ", e$message)
         })
-      }
 
-      # Fallback: intentar maps + sf para polígonos integrados en paquete maps
-      if (!used_poly && requireNamespace("maps", quietly = TRUE) && has_sf) {
-        tryCatch({
-          m <- maps::map("world", "Mexico", fill = TRUE, plot = FALSE)
-          states_sf <- sf::st_as_sf(m)
-          region_names <- sapply(strsplit(m$names, ":"), function(x) x[1])
-          states_sf$estado_norm <- tolower(iconv(region_names, from = "UTF-8", to = "ASCII//TRANSLIT"))
-          data$estado_norm <- tolower(iconv(as.character(data$Estados), from = "UTF-8", to = "ASCII//TRANSLIT"))
-          agg <- aggregate(Repatriaciones ~ estado_norm, data = data, FUN = function(x) if (all(is.na(x))) NA else sum(as.numeric(x), na.rm = TRUE))
-          # Usar match para preservar filas de states_sf
-          states_sf$Repatriaciones <- NA_real_
-          mi <- match(states_sf$estado_norm, agg$estado_norm)
-          states_sf$Repatriaciones[!is.na(mi)] <- agg$Repatriaciones[mi[!is.na(mi)]]
-            # Reemplazar NA por 0 para los estados sin registros
-            nas2 <- which(is.na(states_sf$Repatriaciones))
-            if (length(nas2) > 0) states_sf$Repatriaciones[nas2] <- 0L
-          # Construir display names usando data$Estados_display
-          agg$display <- sapply(agg$estado_norm, function(en) {
-            idx <- which(data$estado_norm == en)
-            if (length(idx) >= 1) return(unique(data$Estados_display[idx])[1])
-            parts <- strsplit(en, " ")[[1]]
-            paste(sapply(parts, function(w) paste0(toupper(substring(w,1,1)), substring(w,2))), collapse = " ")
-          })
-          states_sf$display <- NA_character_
-          states_sf$display[!is.na(mi)] <- agg$display[mi[!is.na(mi)]]
-            missing_disp2 <- which(is.na(states_sf$display) | states_sf$display == "")
-            if (length(missing_disp2) > 0) {
-              choice_names <- as.character(states_sf[["region"]])
-              title_case <- sapply(choice_names, function(x) {
-                parts <- strsplit(tolower(iconv(as.character(x), from = "UTF-8", to = "ASCII//TRANSLIT")), "[[:space:]]+")[[1]]
-                paste(sapply(parts, function(w) paste0(toupper(substring(w,1,1)), substring(w,2))), collapse = " ")
-              })
-              states_sf$display[missing_disp2] <- title_case[missing_disp2]
-            }
-          pal <- leaflet::colorNumeric("YlOrRd", domain = states_sf$Repatriaciones, na.color = "#EEEEEE")
-          return(
-            leaflet::leaflet(states_sf) %>%
-              leaflet::addProviderTiles("CartoDB.Positron") %>%
-              leaflet::addPolygons(fillColor = ~pal(Repatriaciones), fillOpacity = 0.8, color = "#444", weight = 1,
-                                   label = ~paste0(ifelse(is.na(Repatriaciones), paste0(display, ": N/A"), paste0(display, ": ", Repatriaciones)))) %>%
-              leaflet::addLegend(pal = pal, values = ~Repatriaciones, title = "Repatriaciones", position = "bottomright") %>%
-              leaflet::addControl(html = paste0("<div style='padding:6px; font-size:12px;'><b>Polígonos:</b> maps</div>"), position = "topright")
-          )
-        }, error = function(e) {
-          message("[mod_repatriaciones_mx] maps+sf choropleth error: ", e$message)
-        })
-      }
+  # If polygon rendering via rnaturalearth failed, fall back to circle markers using available coordinates.
 
-      # Si no se pudo crear choropleth vía paquetes, usar fallback de marcadores / centroides
+  # Si no se pudo crear choropleth vía rnaturalearth, usar fallback de marcadores / centroides
       data_coords <- data[!is.na(data$Latitud) & !is.na(data$Longitud) & is.finite(data$Latitud) & is.finite(data$Longitud), ]
       if (nrow(data_coords) == 0) {
         msg_html <- paste0("<div style='padding:8px; font-size:12px;'><b>No hay coordenadas válidas.</b> Provee columnas 'Latitud'/'Longitud' en el CSV o asegúrate que los nombres de estados coinciden con los centroids.</div>")

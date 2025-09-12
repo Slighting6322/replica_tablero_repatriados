@@ -418,7 +418,13 @@ server <- function(input, output, session) {
       shiny::observeEvent(session$userData$map_sel_ent(), {
         sel <- NULL
         try({ sel <- session$userData$map_sel_ent() })
-        if (is.null(sel) || sel == "Seleccionar..." || is.null(registro_df) || nrow(registro_df) == 0) return()
+        # If no selection (or placeholder), reset bottom KPIs/bar to top values
+        if (is.null(sel) || sel == "Seleccionar...") {
+          try({ if (exists('kpi_grid2_values') && exists('kpi_grid1_values')) kpi_grid2_values(kpi_grid1_values()) }, silent = TRUE)
+          try({ if (exists('ocupacion_bar1_values') && exists('ocupacion_bar2_values')) ocupacion_bar2_values(ocupacion_bar1_values()) }, silent = TRUE)
+          return()
+        }
+        if (is.null(registro_df) || nrow(registro_df) == 0) return()
         ids <- unique(na.omit(centros_data$id_albergue[normalize_str(centros_data$Descripcion) == normalize_str(sel)]))
         if (length(ids) == 0) return()
   reg_sub <- registro_df[as.character(registro_df$id_albergue) %in% as.character(ids), , drop = FALSE]
@@ -970,13 +976,23 @@ server <- function(input, output, session) {
       error = function(e) message("mod_progress_bar_server (bar2) error: ", e$message)
     )
   }
-  # Montar segundo arreglo de tarjetas KPI
+  # Montar segundo arreglo de tarjetas KPI: inicializar con los valores del top hasta que se seleccione un centro
+  kpi_grid2_values <- shiny::reactiveVal(NULL)
+  try({
+    if (exists('kpi_grid1_values')) kpi_grid2_values(kpi_grid1_values())
+  }, silent = TRUE)
   if (exists("mod_kpi_cards_grid_server")) {
     tryCatch(
-      mod_kpi_cards_grid_server("kpi_grid2"),
+      mod_kpi_cards_grid_server("kpi_grid2", external_values = kpi_grid2_values),
       error = function(e) message("mod_kpi_cards_grid_server (kpi_grid2) error: ", e$message)
     )
   }
+  # Initialize bottom progress bar to mirror top bar until a center is selected
+  try({
+    if (exists('ocupacion_bar1_values') && !is.null(ocupacion_bar1_values())) {
+      ocupacion_bar2_values(ocupacion_bar1_values())
+    }
+  }, silent = TRUE)
   # Exponer porcentaje dinámico para la segunda barra (ocupacion_bar2) como texto
   try({
     output$porcentaje_ocupacion_bar2 <- shiny::renderText({

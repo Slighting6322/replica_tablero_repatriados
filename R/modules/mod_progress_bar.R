@@ -31,6 +31,9 @@ mod_progress_bar_server <- function(id, path = "data/barra_personas.csv", extern
             return(list(actual = actual, total = total, porcentaje = porcentaje))
           }
         }
+        # If external_values reactive exists but returned NULL/invalid, do NOT fall back to file read.
+        # Return a safe default (0/0) so callers that provide a reactive won't trigger file-not-found.
+        return(list(actual = 0, total = 0, porcentaje = 0))
       }
 
       # Fall back to reading file at `path` if external_values not provided / invalid

@@ -427,11 +427,23 @@ server <- function(input, output, session) {
         if (is.null(sel) || sel == "Seleccionar..." || is.null(registro_df) || nrow(registro_df) == 0) return()
         ids <- unique(na.omit(centros_data$id_albergue[normalize_str(centros_data$Descripcion) == normalize_str(sel)]))
         if (length(ids) == 0) return()
-        reg_sub <- registro_df[as.character(registro_df$id_albergue) %in% as.character(ids), , drop = FALSE]
-        sum_hombres <- if ("numero_hombres" %in% names(reg_sub)) sum(as.numeric(reg_sub$numero_hombres), na.rm = TRUE) else 0
-        sum_mujeres <- if ("numero_mujeres" %in% names(reg_sub)) sum(as.numeric(reg_sub$numero_mujeres), na.rm = TRUE) else 0
-        sum_ninos  <- if ("numero_ninos" %in% names(reg_sub))  sum(as.numeric(reg_sub$numero_ninos), na.rm = TRUE) else 0
-        sum_lgbt   <- if ("numero_lgbt" %in% names(reg_sub))   sum(as.numeric(reg_sub$numero_lgbt), na.rm = TRUE) else 0
+  reg_sub <- registro_df[as.character(registro_df$id_albergue) %in% as.character(ids), , drop = FALSE]
+  # Sumar por tipo de registro
+  reg_type1 <- reg_sub[as.character(reg_sub$id_tipo_registro) %in% as.character(1), , drop = FALSE]
+  reg_type2 <- reg_sub[as.character(reg_sub$id_tipo_registro) %in% as.character(2), , drop = FALSE]
+  sum1_hombres <- if ("numero_hombres" %in% names(reg_type1)) sum(as.numeric(reg_type1$numero_hombres), na.rm = TRUE) else 0
+  sum1_mujeres <- if ("numero_mujeres" %in% names(reg_type1)) sum(as.numeric(reg_type1$numero_mujeres), na.rm = TRUE) else 0
+  sum1_ninos  <- if ("numero_ninos" %in% names(reg_type1))  sum(as.numeric(reg_type1$numero_ninos), na.rm = TRUE) else 0
+  sum1_lgbt   <- if ("numero_lgbt" %in% names(reg_type1))   sum(as.numeric(reg_type1$numero_lgbt), na.rm = TRUE) else 0
+  sum2_hombres <- if ("numero_hombres" %in% names(reg_type2)) sum(as.numeric(reg_type2$numero_hombres), na.rm = TRUE) else 0
+  sum2_mujeres <- if ("numero_mujeres" %in% names(reg_type2)) sum(as.numeric(reg_type2$numero_mujeres), na.rm = TRUE) else 0
+  sum2_ninos  <- if ("numero_ninos" %in% names(reg_type2))  sum(as.numeric(reg_type2$numero_ninos), na.rm = TRUE) else 0
+  sum2_lgbt   <- if ("numero_lgbt" %in% names(reg_type2))   sum(as.numeric(reg_type2$numero_lgbt), na.rm = TRUE) else 0
+  # Resultado final: type1 - type2
+  sum_hombres <- sum1_hombres - sum2_hombres
+  sum_mujeres <- sum1_mujeres - sum2_mujeres
+  sum_ninos  <- sum1_ninos - sum2_ninos
+  sum_lgbt   <- sum1_lgbt - sum2_lgbt
         # Actualizar tarjetas KPI en kpi_grid2 (card2, card3, card5, card6)
         tryCatch({
           output[["kpi_grid2-card2"]] <- shiny::renderUI({ mod_kpi_card_ui("kpi_grid2-kpi2", label = "Hombres", value = as.character(sum_hombres)) })

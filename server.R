@@ -417,6 +417,7 @@ server <- function(input, output, session) {
     }
   }, error = function(e) message("Observers for map buttons not installed: ", e$message))
 
+  # reactive holder para permitir actualizar dinámicamente las tarjetas superiores (declarar temprano)
   # Cuando se selecciona un centro en el dropdown debajo del mapa, agregar KPIs desde registro_migrantes
   tryCatch({
     if (exists("mod_kpi_cards_grid_server") && !is.null(centros_data) && file.exists("data/registro_migrantes.csv")) {
@@ -456,8 +457,9 @@ server <- function(input, output, session) {
           }
           # Personas alojadas netas = total_type1 - total_type2 (usamos las sumas individuales)
           personas_alojadas_neto <- (sum1_hombres + sum1_mujeres + sum1_ninos + sum1_lgbt) - (sum2_hombres + sum2_mujeres + sum2_ninos + sum2_lgbt)
-          # Actualizar reactive para la barra si existe
+          # Actualizar reactive para la barra inferior si existe
           try({ if (exists("ocupacion_bar2_values")) ocupacion_bar2_values(list(actual = personas_alojadas_neto, total = total_capacidad)) }, silent = TRUE)
+          # (La actualización de la barra superior se realiza desde los filtros principales para mantener independencia)
         }, silent = TRUE)
 
         # Actualizar tarjetas KPI en kpi_grid2 (card2, card3, card5, card6)
@@ -603,6 +605,30 @@ server <- function(input, output, session) {
             try({ leaflet::leafletProxy("centrosmapa1-mapa_centros", session) %>% leaflet::fitBounds(lng_min, lat_min, lng_max, lat_max) }, silent = TRUE)
             try({ shiny::showNotification(sprintf("Se muestran %d centros", nrow(filtered_unique)), type = "message", duration = 3) }, silent = TRUE)
           }
+          # Actualizar barra superior (ocupacion_bar1) -> filtrar por los centros actualmente mostrados en los filtros
+          try({
+            ids_filtered <- unique(na.omit(filtered_unique$id_albergue))
+            if (length(ids_filtered) > 0 && file.exists("data/registro_migrantes.csv")) {
+              registro_all <- tryCatch(read.csv("data/registro_migrantes.csv", stringsAsFactors = FALSE), error = function(e) NULL)
+              if (!is.null(registro_all) && nrow(registro_all) > 0) {
+                reg_filt <- registro_all[as.character(registro_all$id_albergue) %in% as.character(ids_filtered), , drop = FALSE]
+                r1f <- reg_filt[as.character(reg_filt$id_tipo_registro) %in% as.character(1), , drop = FALSE]
+                r2f <- reg_filt[as.character(reg_filt$id_tipo_registro) %in% as.character(2), , drop = FALSE]
+                s1 <- sum(if ("numero_hombres" %in% names(r1f)) as.numeric(r1f$numero_hombres) else 0, na.rm = TRUE)
+                s1 <- s1 + sum(if ("numero_mujeres" %in% names(r1f)) as.numeric(r1f$numero_mujeres) else 0, na.rm = TRUE)
+                s1 <- s1 + sum(if ("numero_ninos" %in% names(r1f)) as.numeric(r1f$numero_ninos) else 0, na.rm = TRUE)
+                s1 <- s1 + sum(if ("numero_lgbt" %in% names(r1f)) as.numeric(r1f$numero_lgbt) else 0, na.rm = TRUE)
+                s2 <- sum(if ("numero_hombres" %in% names(r2f)) as.numeric(r2f$numero_hombres) else 0, na.rm = TRUE)
+                s2 <- s2 + sum(if ("numero_mujeres" %in% names(r2f)) as.numeric(r2f$numero_mujeres) else 0, na.rm = TRUE)
+                s2 <- s2 + sum(if ("numero_ninos" %in% names(r2f)) as.numeric(r2f$numero_ninos) else 0, na.rm = TRUE)
+                s2 <- s2 + sum(if ("numero_lgbt" %in% names(r2f)) as.numeric(r2f$numero_lgbt) else 0, na.rm = TRUE)
+                caps <- suppressWarnings(as.numeric(as.character(filtered_unique$Capacidad)))
+                caps <- caps[!is.na(caps)]
+                total_caps <- if (length(caps) > 0) sum(caps, na.rm = TRUE) else NA
+                # (top bar must remain static; no update here)
+              }
+            }
+          }, silent = TRUE)
         }, error = function(e) message("Error updating leaflet via proxy (filtros1 buscar): ", e$message))
       }, ignoreInit = TRUE)
 
@@ -763,13 +789,61 @@ server <- function(input, output, session) {
   }
   # Montar tarjetas KPI si el módulo existe
   if (exists("mod_kpi_cards_grid_server")) {
-    tryCatch(
-      mod_kpi_cards_grid_server("kpi_grid1"),
-      error = function(e) message("mod_kpi_cards_grid_server error: ", e$message)
-    )
+    # Compute static top KPI values from cat_albergues.csv and registro_migrantes.csv
+    tryCatch({
+      # Load albergues (uses get_albergues_data in R/data_loader.R)
+      centros_all <- tryCatch(get_albergues_data("data/cat_albergues.csv"), error = function(e) NULL)
+      registro_all <- NULL
+      if (file.exists("data/registro_migrantes.csv")) {
+        registro_all <- tryCatch(read.csv("data/registro_migrantes.csv", stringsAsFactors = FALSE), error = function(e) NULL)
+      }
+
+      # Aggregate registries by type across all centers (safe defaults)
+      if (is.null(registro_all) || nrow(registro_all) == 0) {
+        df_kpi_top <- data.frame(
+          Categoria = c("Entradas al centro de atención", "Hombres", "Mujeres", "Salidas del centro de atención", "Niños y niñas", "Personas LGBTIQ+"),
+          Valor = rep("0", 6), stringsAsFactors = FALSE)
+      } else {
+        reg_type1 <- registro_all[as.character(registro_all$id_tipo_registro) %in% as.character(1), , drop = FALSE]
+        reg_type2 <- registro_all[as.character(registro_all$id_tipo_registro) %in% as.character(2), , drop = FALSE]
+
+        sum1_hombres <- if ("numero_hombres" %in% names(reg_type1)) sum(as.numeric(reg_type1$numero_hombres), na.rm = TRUE) else 0
+        sum1_mujeres <- if ("numero_mujeres" %in% names(reg_type1)) sum(as.numeric(reg_type1$numero_mujeres), na.rm = TRUE) else 0
+        sum1_ninos  <- if ("numero_ninos" %in% names(reg_type1))  sum(as.numeric(reg_type1$numero_ninos), na.rm = TRUE) else 0
+        sum1_lgbt   <- if ("numero_lgbt" %in% names(reg_type1))   sum(as.numeric(reg_type1$numero_lgbt), na.rm = TRUE) else 0
+        sum2_hombres <- if ("numero_hombres" %in% names(reg_type2)) sum(as.numeric(reg_type2$numero_hombres), na.rm = TRUE) else 0
+        sum2_mujeres <- if ("numero_mujeres" %in% names(reg_type2)) sum(as.numeric(reg_type2$numero_mujeres), na.rm = TRUE) else 0
+        sum2_ninos  <- if ("numero_ninos" %in% names(reg_type2))  sum(as.numeric(reg_type2$numero_ninos), na.rm = TRUE) else 0
+        sum2_lgbt   <- if ("numero_lgbt" %in% names(reg_type2))   sum(as.numeric(reg_type2$numero_lgbt), na.rm = TRUE) else 0
+
+        # Net demographic values: type1 - type2
+        net_hombres <- sum1_hombres - sum2_hombres
+        net_mujeres <- sum1_mujeres - sum2_mujeres
+        net_ninos   <- sum1_ninos - sum2_ninos
+        net_lgbt    <- sum1_lgbt - sum2_lgbt
+
+        total_type1 <- sum(c(sum1_hombres, sum1_mujeres, sum1_ninos, sum1_lgbt), na.rm = TRUE)
+        total_type2 <- sum(c(sum2_hombres, sum2_mujeres, sum2_ninos, sum2_lgbt), na.rm = TRUE)
+
+        df_kpi_top <- data.frame(
+          Categoria = c("Entradas al centro de atención", "Hombres", "Mujeres", "Salidas del centro de atención", "Niños y niñas", "Personas LGBTIQ+"),
+          Valor = as.character(c(total_type1, net_hombres, net_mujeres, total_type2, net_ninos, net_lgbt)),
+          stringsAsFactors = FALSE
+        )
+      }
+
+      # Provide computed KPIs as a one-time reactiveVal to the top KPI module (static)
+      kpi_grid1_values <- shiny::reactiveVal(df_kpi_top)
+      mod_kpi_cards_grid_server("kpi_grid1", external_values = kpi_grid1_values)
+    }, error = function(e) {
+      message("Error computing top KPIs: ", e$message)
+      # Fallback to static mount without external values
+      tryCatch(mod_kpi_cards_grid_server("kpi_grid1"), error = function(e) message("fallback kpi_grid1 mount error: ", e$message))
+    })
   }
   # Montar barra de progreso de ocupación si el módulo existe
   if (exists("mod_progress_bar_server")) {
+    # Mount top progress bar statically (no external reactive passed)
     tryCatch(
       mod_progress_bar_server("ocupacion_bar1"),
       error = function(e) message("mod_progress_bar_server error: ", e$message)

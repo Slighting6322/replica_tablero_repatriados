@@ -220,8 +220,8 @@ server <- function(input, output, session) {
   }
 
   # --- Montar servidores de los filtros del mapa ---
-  # Dropdown entidad
-  entidades_choices <- if (!is.null(centros_data) && "Entidad" %in% names(centros_data)) unique(centros_data$Entidad) else NULL
+  # Dropdown debajo del mapa: listar centros por 'Descripcion' (centro de atención)
+  entidades_choices <- if (!is.null(centros_data) && "Descripcion" %in% names(centros_data)) unique(centros_data$Descripcion) else NULL
   if (exists("mod_filters_dropdown_server")) {
     tryCatch({
       sel_ent <- mod_filters_dropdown_server("map_dd_entidad")
@@ -326,7 +326,7 @@ server <- function(input, output, session) {
   # Use leafletProxy to update markers in the map module output (namespaced id: centrosmapa1-mapa_centros)
   tryCatch({
     if (!is.null(session$userData$map_btns)) {
-      # Buscar: filter by selected entidad and update markers
+      # Buscar: filter by selected centro (Descripcion) and update markers
       shiny::observeEvent(session$userData$map_btns$buscar(), {
         sel <- NULL
         try({ sel <- if (!is.null(session$userData$map_sel_ent)) session$userData$map_sel_ent() })
@@ -334,9 +334,9 @@ server <- function(input, output, session) {
         if (is.null(sel) || sel == "" || sel == "Seleccionar...") {
           filtered <- centros_data
         } else {
-          # Comparacion robusta usando normalizacion
+          # Comparacion robusta usando normalizacion sobre Descripcion
           norm_sel <- normalize_str(sel)
-          filtered <- centros_data[normalize_str(centros_data$Entidad) == norm_sel, , drop = FALSE]
+          filtered <- centros_data[normalize_str(centros_data$Descripcion) == norm_sel, , drop = FALSE]
         }
         icon_personas <- leaflet::makeIcon(
           iconUrl = "images/iconos_centros.png",
@@ -392,7 +392,7 @@ server <- function(input, output, session) {
 
       # Refrescar: reset selection and show all markers
       shiny::observeEvent(session$userData$map_btns$refrescar(), {
-        tryCatch({ updateSelectInput(session, "map_dd_entidad-select", selected = "Seleccionar...") }, error = function(e) {})
+  tryCatch({ updateSelectInput(session, "map_dd_entidad-select", selected = "Seleccionar...") }, error = function(e) {})
         if (is.null(centros_data)) return()
         icon_personas <- leaflet::makeIcon(
           iconUrl = "images/iconos_centros.png",

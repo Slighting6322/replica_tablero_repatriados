@@ -50,7 +50,7 @@ ui <- fluidPage(class = "app-root-full",
                            if (exists("mod_centros_mapa_ui")) mod_centros_mapa_ui("centrosmapa1") else div(class = "mapa-centros-fallback", "(Mapa de centros no disponible)"),
                ## FILTROS DE MAPA (debajo del mapa) - alineados horizontalmente
                           div(class = "filters-row mapa-filtros", style = "max-width:1100px;",
-                 if (exists("mod_filters_dropdown_ui")) mod_filters_dropdown_ui("map_dd_entidad", label = "Entidad:") else div(class = "filter-dropdown", "(Dropdown no disponible)"),
+                 if (exists("mod_filters_dropdown_ui")) mod_filters_dropdown_ui("map_dd_entidad", label = "Selecciona un centro de atención:") else div(class = "filter-dropdown", "(Dropdown no disponible)"),
                  if (exists("mod_filters_buttons_ui")) mod_filters_buttons_ui("map_btns") else div(class = "filter-buttons", "(Botones no disponibles)")
                ),
                # Segunda barra de progreso (debajo de la fila de filtros del mapa)

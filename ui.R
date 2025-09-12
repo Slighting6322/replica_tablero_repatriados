@@ -54,10 +54,7 @@ ui <- fluidPage(class = "app-root-full",
                  if (exists("mod_filters_buttons_ui")) mod_filters_buttons_ui("map_btns") else div(class = "filter-buttons", "(Botones no disponibles)")
                ),
                # Segunda barra de progreso (debajo de la fila de filtros del mapa)
-               h2(class = "titulo-barra", paste0(
-                 "Ocupación General: ",
-                 if (!is.na(porcentaje_ocupacion)) paste0(porcentaje_ocupacion, "%") else ""
-               )),
+               h2(class = "titulo-barra", HTML(paste0("Ocupación General: ", shiny::uiOutput("porcentaje_ocupacion_bar2")))),
                if (exists("mod_progress_bar_ui")) mod_progress_bar_ui("ocupacion_bar2") else div(class = "progress-fallback", "(Barra secundaria no disponible)")
               ,
               # Segundo arreglo de tarjetas KPI (debajo de la segunda barra)

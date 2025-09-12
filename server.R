@@ -444,8 +444,33 @@ server <- function(input, output, session) {
   sum_mujeres <- sum1_mujeres - sum2_mujeres
   sum_ninos  <- sum1_ninos - sum2_ninos
   sum_lgbt   <- sum1_lgbt - sum2_lgbt
+        # Antes de actualizar las tarjetas, actualizar la barra de ocupación (ocupacion_bar1)
+        try({
+          # Calcular suma de capacidad desde centros_data para los ids seleccionados
+          total_capacidad <- NA
+          if (!is.null(centros_data) && "id_albergue" %in% names(centros_data)) {
+            cap_vals <- centros_data$Capacidad[as.character(centros_data$id_albergue) %in% as.character(ids)]
+            cap_vals <- suppressWarnings(as.numeric(as.character(cap_vals)))
+            cap_vals <- cap_vals[!is.na(cap_vals)]
+            if (length(cap_vals) > 0) total_capacidad <- sum(cap_vals, na.rm = TRUE)
+          }
+          # Personas alojadas netas = total_type1 - total_type2 (usamos las sumas individuales)
+          personas_alojadas_neto <- (sum1_hombres + sum1_mujeres + sum1_ninos + sum1_lgbt) - (sum2_hombres + sum2_mujeres + sum2_ninos + sum2_lgbt)
+          # Actualizar reactive para la barra si existe
+          try({ if (exists("ocupacion_bar2_values")) ocupacion_bar2_values(list(actual = personas_alojadas_neto, total = total_capacidad)) }, silent = TRUE)
+        }, silent = TRUE)
+
         # Actualizar tarjetas KPI en kpi_grid2 (card2, card3, card5, card6)
         tryCatch({
+          # Totales por tipo para Entradas/Salidas
+          total_type1 <- sum(c(sum1_hombres, sum1_mujeres, sum1_ninos, sum1_lgbt), na.rm = TRUE)
+          total_type2 <- sum(c(sum2_hombres, sum2_mujeres, sum2_ninos, sum2_lgbt), na.rm = TRUE)
+
+          # Entradas = total_type1, Salidas = total_type2
+          output[["kpi_grid2-card1"]] <- shiny::renderUI({ mod_kpi_card_ui("kpi_grid2-kpi1", label = "Entradas al centro de atención", value = as.character(total_type1)) })
+          output[["kpi_grid2-card4"]] <- shiny::renderUI({ mod_kpi_card_ui("kpi_grid2-kpi4", label = "Salidas del centro de atención", value = as.character(total_type2)) })
+
+          # Detalle demográfico neto (type1 - type2)
           output[["kpi_grid2-card2"]] <- shiny::renderUI({ mod_kpi_card_ui("kpi_grid2-kpi2", label = "Hombres", value = as.character(sum_hombres)) })
           output[["kpi_grid2-card3"]] <- shiny::renderUI({ mod_kpi_card_ui("kpi_grid2-kpi3", label = "Mujeres", value = as.character(sum_mujeres)) })
           output[["kpi_grid2-card5"]] <- shiny::renderUI({ mod_kpi_card_ui("kpi_grid2-kpi5", label = "Niños y niñas", value = as.character(sum_ninos)) })
@@ -772,6 +797,15 @@ server <- function(input, output, session) {
       error = function(e) message("mod_kpi_cards_grid_server (kpi_grid2) error: ", e$message)
     )
   }
+  # Exponer porcentaje dinámico para la segunda barra (ocupacion_bar2) como texto
+  try({
+    output$porcentaje_ocupacion_bar2 <- shiny::renderText({
+      vals <- tryCatch({ if (exists('ocupacion_bar2_values')) ocupacion_bar2_values() else NULL }, error = function(e) NULL)
+      if (is.null(vals) || is.null(vals$actual) || is.null(vals$total) || is.na(vals$total) || vals$total <= 0) return(NA)
+      pct <- round(100 * (as.numeric(vals$actual) / as.numeric(vals$total)), 1)
+      paste0(pct, "%")
+    })
+  }, silent = TRUE)
   # Si tienes un módulo de fecha reutilizable, puedes montarlo también (ejemplo):
   if (exists("mod_fecha_server")) {
     # No usar el mismo id que el placeholder principal; usarlo en submódulos cuando haga falta

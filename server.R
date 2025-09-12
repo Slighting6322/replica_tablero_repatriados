@@ -417,6 +417,32 @@ server <- function(input, output, session) {
     }
   }, error = function(e) message("Observers for map buttons not installed: ", e$message))
 
+  # Cuando se selecciona un centro en el dropdown debajo del mapa, agregar KPIs desde registro_migrantes
+  tryCatch({
+    if (exists("mod_kpi_cards_grid_server") && !is.null(centros_data) && file.exists("data/registro_migrantes.csv")) {
+      registro_df <- tryCatch(read.csv("data/registro_migrantes.csv", stringsAsFactors = FALSE), error = function(e) NULL)
+      shiny::observeEvent(session$userData$map_sel_ent(), {
+        sel <- NULL
+        try({ sel <- session$userData$map_sel_ent() })
+        if (is.null(sel) || sel == "Seleccionar..." || is.null(registro_df) || nrow(registro_df) == 0) return()
+        ids <- unique(na.omit(centros_data$id_albergue[normalize_str(centros_data$Descripcion) == normalize_str(sel)]))
+        if (length(ids) == 0) return()
+        reg_sub <- registro_df[as.character(registro_df$id_albergue) %in% as.character(ids), , drop = FALSE]
+        sum_hombres <- if ("numero_hombres" %in% names(reg_sub)) sum(as.numeric(reg_sub$numero_hombres), na.rm = TRUE) else 0
+        sum_mujeres <- if ("numero_mujeres" %in% names(reg_sub)) sum(as.numeric(reg_sub$numero_mujeres), na.rm = TRUE) else 0
+        sum_ninos  <- if ("numero_ninos" %in% names(reg_sub))  sum(as.numeric(reg_sub$numero_ninos), na.rm = TRUE) else 0
+        sum_lgbt   <- if ("numero_lgbt" %in% names(reg_sub))   sum(as.numeric(reg_sub$numero_lgbt), na.rm = TRUE) else 0
+        # Actualizar tarjetas KPI en kpi_grid2 (card2, card3, card5, card6)
+        tryCatch({
+          output[["kpi_grid2-card2"]] <- shiny::renderUI({ mod_kpi_card_ui("kpi_grid2-kpi2", label = "Hombres", value = as.character(sum_hombres)) })
+          output[["kpi_grid2-card3"]] <- shiny::renderUI({ mod_kpi_card_ui("kpi_grid2-kpi3", label = "Mujeres", value = as.character(sum_mujeres)) })
+          output[["kpi_grid2-card5"]] <- shiny::renderUI({ mod_kpi_card_ui("kpi_grid2-kpi5", label = "Niños y niñas", value = as.character(sum_ninos)) })
+          output[["kpi_grid2-card6"]] <- shiny::renderUI({ mod_kpi_card_ui("kpi_grid2-kpi6", label = "Personas LGBTIQ+", value = as.character(sum_lgbt)) })
+        }, error = function(e) message("Error updating KPI UI: ", e$message))
+      }, ignoreInit = TRUE)
+    }
+  }, silent = TRUE)
+
   # Observers para la fila de filtros (`filtros1`): buscar / refrescar
   tryCatch({
     if (!is.null(session$userData$filtros1)) {
